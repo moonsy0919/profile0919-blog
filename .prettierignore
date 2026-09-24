@@ -1,0 +1,16 @@
+# 빌드·의존성 산출물
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+package-lock.json
+
+# shadcn CLI가 생성하는 코드는 원본 형태를 유지한다
+src/components/ui
+
+# Next.js가 관리하는 에이전트 규칙 파일과 로컬 도구 설정은 건드리지 않는다
+AGENTS.md
+.claude
