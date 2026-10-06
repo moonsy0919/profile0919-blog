@@ -90,9 +90,10 @@
   ├─ Server Component (기본): 목록/상세 SSR, Supabase 서버 클라이언트로 조회, 헤더 프로필 조회,
   │                           날씨 조회(메인 페이지 라우트 그룹에서만)
   ├─ Client Component: 하늘·시계(SkyHeader, 메인 전용), 테마 토글, 로그인 폼(상태/오류 표시),
-  │                    [로그아웃] 버튼, 폼 입력/미리보기, 태그 검색·추가, 프로필 이미지 선택/미리보기
+  │                    [로그아웃] 버튼, 폼 입력/미리보기, 태그 검색·추가, 프로필 이미지 선택/미리보기,
+  │                    썸네일·프로필 이미지 Storage 직접 업로드(관리자 세션)
   └─ Server Action: 로그인(signInWithPassword → is_admin() 검사 → profiles 최초 생성)·로그아웃,
-                    글/일기/태그/프로필 저장·삭제, 썸네일·프로필 이미지 업로드 (관리자 검증 후 실행)
+                    글/일기/태그/프로필 저장·삭제 (관리자 검증 후 실행, 이미지 파일 본문은 받지 않음)
 
 Next.js 16 (App Router)
   ├─ proxy.ts: 모든 요청에서 Supabase 세션 쿠키 갱신 (구현됨)
@@ -107,6 +108,7 @@ Supabase
 ```
 
 - **권한 3중 방어**: ① 가입 비활성화 + 로그인 직후 `is_admin()` 검사(허용 목록 외 계정은 세션 폐기) ② 서버 액션/관리자 페이지의 관리자 재검증 ③ RLS·Storage 정책(최종 방어선). UI 숨김은 편의일 뿐 보안 수단이 아니다.
+- **이미지 업로드는 브라우저에서 Supabase Storage로 직접 올린다.** Next.js 16 서버 액션 요청 본문은 기본 1MB로 제한되고(`serverActions.bodySizeLimit` 문서), Vercel 서버리스 함수에도 요청 본문 크기 제한이 있어(구현 시 공식 문서로 한도 확인) 최대 5MB 이미지를 서버 액션이나 라우트로 중계하지 않는다. Storage RLS가 관리자만 쓰기를 허용하므로 클라이언트 업로드도 안전하며, 파일 크기·형식은 버킷의 5MB·MIME 제한이 서버 측에서 강제한다. 저장 서버 액션은 전달받은 이미지 URL이 이 버킷의 허용 경로(`posts/`, `dev-logs/`, `profile/`)인지 검증한 뒤 DB에 기록한다.
 - **가입 차단은 필수 설정**: 공개 anon 키로 누구나 `signUp`을 호출할 수 있으므로 Supabase 대시보드에서 신규 가입 허용(Allow new users to sign up)을 반드시 끈다. 설정이 실수로 켜져 계정이 생겨도 `admin_allowlist`에 없으면 `is_admin()`이 false이므로 RLS가 쓰기를 거부한다(이중 안전장치).
 - **헤더 레이아웃 분리**: 헤더는 루트 레이아웃이 아니라 라우트 그룹 레이아웃에서 렌더링한다. 메인 페이지 그룹은 확장형 헤더 + 날씨 조회, 나머지 그룹은 압축형 헤더(날씨 조회 없음). 404/오류 화면은 압축형 헤더를 직접 렌더링한다.
 - **proxy.ts는 세션 갱신 전용**으로 유지한다. Next.js 16에서 `middleware`는 `proxy`로 이름이 바뀌었으며, proxy는 렌더와 분리되어 실행되므로 권한 판단의 단일 근거로 쓰지 않고 페이지/서버 액션에서 재검증한다.
@@ -149,7 +151,7 @@ Supabase
 | 화면 | 최종 경로 | 현재 상태 | 비고 |
 |------|-----------|-----------|------|
 | 메인 페이지 | `/` | 임시 자리 표시자 | 확장형 헤더(날씨 연출) + 바디(블로그 목록 + 개발 일기 영역). `?tag=…&page=…`. 날씨 조회는 이 라우트에서만 |
-| (구) 블로그 목록 | `/posts` | 단순 목록 구현됨 | `/`로 영구 리디렉션(`next.config.ts`의 `redirects`, 쿼리 유지 여부는 구현 시 확인). 목록 로직은 메인으로 이식 후 페이지 삭제 |
+| (구) 블로그 목록 | `/posts` | 단순 목록 구현됨 | `/`로 리디렉션(`next.config.ts`의 `redirects`, 쿼리는 자동으로 목적지에 전달됨. 처음에는 `permanent: false`(307)로 두고 안정화 후 영구(308)로 전환 — 308은 브라우저가 영구 캐시한다). 목록 로직은 메인으로 이식 후 페이지 삭제 |
 | 게시글 상세 | `/posts/[slug]` | 없음 | slug 사용 |
 | 게시글 작성 | `/posts/new` | 없음 | 요청서의 `/post/create` 대체 |
 | 게시글 수정 | `/posts/[slug]/edit` | 없음 | |
@@ -233,7 +235,7 @@ erDiagram
 
 ### 2.4 SQL: 관리자 판별 (신규 마이그레이션)
 
-> 기존 마이그레이션 `20261006094502_create_posts_table.sql`은 수정하지 않고, 새 마이그레이션으로 정책을 교체한다. 컬럼·테이블 정의는 아래 순서대로 한 파일(또는 논리 단위별 여러 파일)로 작성한다.
+> 기존 마이그레이션 `20261006094502_create_posts_table.sql`은 수정하지 않고, 새 마이그레이션으로 정책을 교체한다. 컬럼·테이블 정의는 아래 순서(admin_allowlist → is_admin() → profiles와 정책)대로 한 파일(또는 논리 단위별 여러 파일)로 작성한다.
 
 ```sql
 -- 허용 계정 목록 (Supabase Auth 사용자 id 기준, 계정 삭제 시 함께 삭제)
@@ -244,6 +246,27 @@ create table public.admin_allowlist (
 alter table public.admin_allowlist enable row level security;
 -- 정책을 만들지 않는다: anon/authenticated는 직접 조회 불가
 revoke all on public.admin_allowlist from anon, authenticated;
+
+-- (순서 주의) is_admin()은 profiles의 RLS 정책보다 먼저 만들어야 한다. 정책 생성 시점에 함수가 존재해야 하기 때문이다.
+
+-- 현재 로그인 사용자가 허용 목록에 있는지 판별.
+-- user_metadata는 사용자가 수정할 수 있으므로 쓰지 않고, 서버만 쓸 수 있는 admin_allowlist의 user_id로 대조한다.
+-- 가입 허용 설정이 실수로 켜져 계정이 생겨도 허용 목록에 없으면 false이므로 RLS가 쓰기를 막는다(이중 안전장치).
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.admin_allowlist
+    where user_id = (select auth.uid())
+  );
+$$;
+revoke execute on function public.is_admin() from public;
+grant execute on function public.is_admin() to anon, authenticated;
 
 -- 관리자 표시용 프로필 (권한 근거 아님). 헤더 중앙 프로필의 출처
 create table public.profiles (
@@ -264,29 +287,14 @@ create policy "profiles_update_self_admin" on public.profiles
   for update using (id = (select auth.uid()) and (select public.is_admin()))
   with check (id = (select auth.uid()) and (select public.is_admin()));
 
--- 현재 로그인 사용자가 허용 목록에 있는지 판별.
--- user_metadata는 사용자가 수정할 수 있으므로 쓰지 않고, 서버만 쓸 수 있는 admin_allowlist의 user_id로 대조한다.
--- 가입 허용 설정이 실수로 켜져 계정이 생겨도 허용 목록에 없으면 false이므로 RLS가 쓰기를 막는다(이중 안전장치).
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1
-    from public.admin_allowlist
-    where user_id = (select auth.uid())
-  );
-$$;
-revoke execute on function public.is_admin() from public;
-grant execute on function public.is_admin() to anon, authenticated;
 ```
 
 ### 2.5 SQL: 테이블 변경/신규
 
 ```sql
+-- 기존 set_updated_at 함수의 search_path 고정 (원격 보안 어드바이저 경고 해소, dev_logs 트리거도 이 함수를 사용)
+alter function public.set_updated_at() set search_path = '';
+
 -- posts 변경: 썸네일 경로(Storage 공개 URL 또는 객체 경로)
 alter table public.posts add column thumbnail_url text;
 -- 저장하면 즉시 공개되므로 기본값을 true로 맞춘다(앱도 저장 시 항상 true를 명시)
@@ -300,6 +308,28 @@ create table public.tags (
 );
 -- 대소문자만 다른 중복을 막는다(표기는 최초 등록값 유지)
 create unique index tags_name_lower_key on public.tags (lower(name));
+
+-- 태그 등록: 대소문자 무시 중복이면 기존 태그를 그대로 반환한다.
+-- supabase-js의 upsert(onConflict)는 표현식 인덱스(lower(name))를 지정할 수 없어 함수로 처리한다.
+-- security invoker이므로 RLS가 적용되어 관리자만 실제로 등록할 수 있다.
+create function public.add_tag(tag_name text)
+returns public.tags
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  result public.tags;
+begin
+  insert into public.tags (name) values (btrim(tag_name))
+  on conflict ((lower(name))) do nothing;
+
+  select * into result from public.tags where lower(name) = lower(btrim(tag_name));
+  return result;
+end;
+$$;
+revoke execute on function public.add_tag(text) from public, anon;
+grant execute on function public.add_tag(text) to authenticated;
 
 create table public.post_tags (
   post_id uuid not null references public.posts (id) on delete cascade,
@@ -341,8 +371,8 @@ create index posts_published_created_at_idx
 
 ```sql
 -- ── posts ──────────────────────────────────────────
-drop policy "authenticated_users_manage_posts" on public.posts;
-drop policy "published_posts_are_public" on public.posts;
+drop policy if exists "authenticated_users_manage_posts" on public.posts;
+drop policy if exists "published_posts_are_public" on public.posts;
 
 -- 공개 글(published = true)은 누구나, 비공개 행은 관리자만 조회.
 -- 앱은 저장 시 항상 published = true로 기록하므로 방문자에게 모든 글이 보인다.
@@ -401,7 +431,7 @@ create policy "dev_log_tags_delete_admin" on public.dev_log_tags
 ```
 
 - `(select public.is_admin())` 형태로 감싸 행마다 재평가되지 않게 한다(initPlan 캐싱).
-- `post_tags`, `dev_log_tags`는 UPDATE 정책이 없다. 태그 변경은 삭제 후 재삽입으로 처리한다.
+- `post_tags`, `dev_log_tags`는 UPDATE 정책이 없다. 태그 변경은 삭제 후 재삽입으로 처리하되, **글/일기 행 저장과 태그 매핑 갱신은 DB 함수(`save_post`, `save_dev_log`, security invoker)로 한 트랜잭션에 처리**한다. 서버 액션에서 따로 호출하면 중간 실패 시 글만 저장되고 태그가 사라지는 불일치가 생기기 때문이다. 함수 본문 SQL은 구현 단계(Phase 6, 8)에서 작성한다.
 - `tags`는 블로그·개발 일기가 공유하므로 정책을 공유한다(SELECT 전체 공개, 쓰기 관리자 한정). 사이드바 개수는 `post_tags`만 집계하고 `dev_log_tags`는 집계하지 않는다.
 
 ### 2.7 관리자 시드와 가입 차단 (대시보드 수동 설정)
@@ -409,7 +439,7 @@ create policy "dev_log_tags_delete_admin" on public.dev_log_tags
 이 절의 작업은 마이그레이션 파일이 아니라 Supabase 대시보드에서 수행하며, 개인 정보(이메일, user id)를 저장소에 커밋하지 않는다.
 
 1. Authentication > Users > Add user로 관리자 계정 1개 생성(이메일 형식 ID + 강한 비밀번호, 이메일 확인 자동 처리).
-2. Authentication > Sign In / Providers에서 **Allow new users to sign up을 끄고**(필수) GitHub 등 다른 provider를 비활성화.
+2. Authentication > Sign In / Providers에서 **Allow new users to sign up을 끄고**(필수) GitHub 등 다른 provider를 비활성화하고, **Anonymous sign-ins도 꺼 둔다**(익명 사용자도 `authenticated` 역할을 받기 때문이며 기본값은 꺼짐). 설정 이름과 위치는 구현 직전에 대시보드에서 확인한다.
 3. 생성된 사용자의 id(uuid)를 복사해 SQL Editor에서 1회 실행: `insert into public.admin_allowlist (user_id) values ('<관리자 user id>');`
 
 ### 2.8 SQL: Storage 버킷 정책
@@ -422,8 +452,10 @@ values (
   array['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 );
 
-create policy "thumbnails_select_public" on storage.objects
-  for select using (bucket_id = 'thumbnails');
+-- 공개 버킷은 URL로 바로 제공되므로 방문자용 SELECT 정책을 만들지 않는다(만들면 누구나 파일 목록을 조회할 수 있다).
+-- 관리자의 목록 조회·삭제·교체 동작을 위해 관리자 전용 SELECT만 둔다.
+create policy "thumbnails_select_admin" on storage.objects
+  for select using (bucket_id = 'thumbnails' and (select public.is_admin()));
 create policy "thumbnails_insert_admin" on storage.objects
   for insert with check (bucket_id = 'thumbnails' and (select public.is_admin()));
 create policy "thumbnails_update_admin" on storage.objects
@@ -492,7 +524,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 - **통과 조건**: 미리 등록된 계정이면서 `admin_allowlist`에 있는 계정만 통과한다. 비밀번호가 맞아도 허용 목록 외 계정은 3-c에서 세션이 폐기된다(쓰기는 서버 액션 재검증과 RLS도 거부).
 - **오류 문구 통일**: 틀린 아이디, 틀린 비밀번호, 허용 목록 외 계정 모두 폼 안에 **"아이디 또는 비밀번호가 올바르지 않습니다"** 한 가지로 표시해 계정 존재 여부를 노출하지 않는다. 오류 안내는 로그인 폼 안에서만 하며 토스트용 URL 파라미터(`auth_error`)와 `AuthErrorToast`는 두지 않는다(리디렉션 기반 오류 전달이 없으므로 불필요).
 - **가입/재설정 없음**: 회원가입 화면과 "비밀번호 찾기"는 만들지 않는다. 비밀번호 변경은 Supabase 대시보드에서만 한다.
-- **로그인 시도 제한**: Supabase Auth 기본 rate limit에 의존한다. 필요 시 CAPTCHA(Supabase Auth CAPTCHA 설정)를 이후 보강으로 검토한다(MVP 제외).
+- **로그인 시도 제한(CAPTCHA 권장)**: Supabase Auth의 속도 제한은 IP 주소 기준이다. 로그인을 서버 액션에서 호출하면 Supabase는 방문자가 아니라 배포 서버의 IP를 보므로 방문자별 제한이 되지 않고, 반복 시도가 공유 한도를 소진해 관리자 로그인이 일시적으로 막힐 수 있다. 그래서 Supabase Auth CAPTCHA(Cloudflare Turnstile 등)를 로그인 폼에 적용하는 것을 **권장**한다(적용 방법은 구현 시 Supabase Auth CAPTCHA 가이드로 확인, 적용 여부는 6절).
 - **세션 유지 기간**: Supabase 기본값을 따른다.
 - **profiles 처리 규칙(덮어쓰기 금지)**: 로그인 성공(`is_admin()` 통과) 직후 서버 액션이 본인 `profiles` 행을 조회해 **없을 때만 insert**한다(`display_name` = 이메일 로컬 파트(30자 초과 시 자름), `avatar_url` = null → 설정값/기본 이미지 폴백). 행이 이미 있으면 **아무것도 하지 않는다**(프로필 수정 페이지의 수정값 보존). `upsert`로 덮어쓰지 않는다.
 - `next` 리디렉션 파라미터는 `/`로 시작하는 내부 경로만 허용한다(`//`, `/\` 시작은 거부, 오픈 리디렉트 방지). 없거나 거부되면 메인 페이지로 이동한다.
@@ -505,7 +537,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 |------|-----------|
 | 로그인 서버 액션 | 가입은 대시보드에서 비활성화, `signInWithPassword` 성공 직후 `is_admin()` 검사. 허용 목록 외 계정은 즉시 `signOut`(1차 방어) |
 | 작성/수정/프로필 수정 페이지 진입 | 서버에서 `getUser()`(쿠키 위조 방지를 위해 `getSession()` 단독 사용 금지)로 사용자 확인 후 `is_admin()` 호출. 비관리자는 `/login?next=<원래 경로>`로 리디렉션 |
-| 저장/삭제/업로드/태그 추가/프로필 저장 서버 액션 | 실행 직전 동일 검증을 반복. 실패 시 거부 응답(2차 방어) |
+| 저장/삭제/태그 추가/프로필 저장 서버 액션 (업로드는 브라우저→Storage 직접이며 RLS가 강제) | 실행 직전 동일 검증을 반복. 실패 시 거부 응답(2차 방어) |
 | DB/Storage | RLS·Storage 정책이 최종 거부 (UI·서버 검증이 뚫리거나 가입 허용이 실수로 켜져도 안전, 3차 방어) |
 | 헤더/버튼 노출 | 서버에서 관리자 여부를 계산해 Server Component에서 조건부 렌더링 (방문자 HTML에 [작성]/[프로필]/[로그아웃] 등 관리 버튼 미포함) |
 
@@ -534,7 +566,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **F005** | 게시글 수정/삭제 | 상세 맨 아래 [수정] → 기존 내용 불러와 [저장], 삭제(확인 다이얼로그) | 게시글 상세 페이지, 게시글 수정 페이지 |
 | **F006** | 개발 일기 조회 | 개발 일기 목록(최신순)과 상세 조회. 카드: 썸네일·제목·본문 요약·날짜·태그·(선택) GitHub 링크 | 개발 일기 목록 페이지, 개발 일기 상세 페이지 |
 | **F007** | 개발 일기 작성/수정/삭제 | [게시] → 썸네일·제목·본문·태그·GitHub URL(선택) 입력 후 [저장], 상세 [수정], 삭제 | 개발 일기 작성 페이지, 개발 일기 수정 페이지, 개발 일기 상세 페이지 |
-| **F009** | 썸네일 업로드 | PNG/JPG/GIF/WEBP 선택, 크기·형식 검증, Storage 저장, 미리보기, 교체 | 게시글 작성 페이지, 게시글 수정 페이지, 개발 일기 작성 페이지, 개발 일기 수정 페이지 |
+| **F009** | 썸네일 업로드 | PNG/JPG/GIF/WEBP 선택, 크기·형식 검증, 브라우저에서 Storage 직접 업로드, 미리보기, 교체 | 게시글 작성 페이지, 게시글 수정 페이지, 개발 일기 작성 페이지, 개발 일기 수정 페이지 |
 | **F010** | 태그 검색·선택·추가 | 기존 tags를 검색해 선택, 새 태그는 직접 입력 후 [추가]로 tags에 등록. 게시글·개발 일기 폼 공용 | 게시글 작성 페이지, 게시글 수정 페이지, 개발 일기 작성 페이지, 개발 일기 수정 페이지 |
 | **F016** | 헤더 시간·날씨 UI | **메인 페이지에서만** 서울(Asia/Seoul) 현재 시각 XX:XX, 일출~일몰에 따른 해/달 위치, 맑음·흐림·비·눈 연출, API 실패 시 시간대만 반영하는 폴백. 날씨 조회도 메인에서만 수행 | 메인 페이지 |
 | **F017** | 헤더 중앙 프로필 | 모든 페이지 헤더 중앙에 프로필 이미지와 이름 표시. **값은 DB(`profiles`)에서 조회**(방문자도 조회 가능, SELECT 공개)하며 행이 없거나 값이 비면 설정값(`siteConfig.profile`)/기본 이미지로 폴백. 값의 수정은 F021 | 헤더(공통) |
@@ -675,10 +707,10 @@ create policy "thumbnails_delete_admin" on storage.objects
 |------|------|
 | **구성** | 선택된 태그 칩(× 제거), 검색 입력창, 결과 드롭다운(`combobox`/`listbox` 패턴), [추가] 버튼 |
 | **기존 태그 선택** | 서버가 전달한 `tags` 전체 목록을 입력어로 부분 일치(대소문자 무시) 검색. ↑/↓로 이동, Enter로 선택, Esc로 닫기. 이미 선택된 태그는 결과에서 제외 |
-| **새 태그 추가** | 입력값과 정확히 일치하는(대소문자 무시) 기존 태그가 없고 검증을 통과하면 [추가]가 활성화된다. [추가] 클릭 → 서버 액션 `createTag`가 관리자 재검증 후 `tags`에 등록하고 방금 만든 태그를 선택 상태로 반영. 등록은 클릭 즉시 이뤄지므로 글 [저장]을 취소해도 태그는 남는다 |
+| **새 태그 추가** | 입력값과 정확히 일치하는(대소문자 무시) 기존 태그가 없고 검증을 통과하면 [추가]가 활성화된다. [추가] 클릭 → 서버 액션 `createTag`가 관리자 재검증 후 DB 함수 `add_tag`(2.5, 대소문자 무시 중복이면 기존 태그를 반환)로 `tags`에 등록하고 방금 만든 태그를 선택 상태로 반영. 등록은 클릭 즉시 이뤄지므로 글 [저장]을 취소해도 태그는 남는다 |
 | **정규화/검증** | 앞뒤 공백 제거, 연속 공백은 한 칸, 선행 `#` 제거, 길이 1~20자, 글(게시글/개발 일기)당 최대 10개 |
 | **중복·대소문자 규칙** | 비교 기준은 `lower(name)`(DB 고유 인덱스와 동일). "React"가 있을 때 "react"를 추가하면 새로 만들지 않고 기존 "React"를 선택하며 토스트로 알림. 표기는 최초 등록 값을 유지. 동시 등록으로 고유 제약(23505)이 나면 기존 행을 조회해 선택 |
-| **저장 연동** | 폼 [저장] 시 선택된 태그 id 목록이 전달되어 `post_tags` 또는 `dev_log_tags`를 삭제 후 재삽입 |
+| **저장 연동** | 폼 [저장] 시 선택된 태그 id 목록이 DB 함수(`save_post`/`save_dev_log`)에 전달되어 글 저장과 같은 트랜잭션에서 `post_tags` 또는 `dev_log_tags`를 삭제 후 재삽입 |
 | **정리 정책** | 미사용 태그를 자동 삭제하지 않는다. 메인 사이드바는 블로그 글에 1개 이상 연결된 태그만 표시 |
 
 #### 폼 공통 (PostForm / DevLogForm)
@@ -691,7 +723,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **GitHub URL 검증** | 빈 값 허용(null). 입력 시 `https://github.com/…` 형식의 URL이어야 함(Zod `url` + 호스트 `github.com` 확인, 서버 액션에서 동일 검증, DB check로 이중 방어) |
 | **본문 에디터** | 좌: 마크다운 입력(textarea), 우: 미리보기(탭 전환형, 모바일은 탭). 권장 이유는 6절 가정 목록 참조 |
 | **UI State** | `idle` → `dirty`(입력 변경, 이탈 시 확인) → `submitting`(버튼 비활성+스피너) → `success`(토스트 후 이동) / `error`(필드별 오류, 서버 오류 토스트) · 업로드 상태 `empty` / `uploading` / `uploaded` / `failed` |
-| **검증** | 클라이언트(Zod)와 서버 액션 양쪽에서 동일 검증. 썸네일: PNG/JPG/GIF/WEBP, 최대 5MB |
+| **검증** | 텍스트 필드는 클라이언트(Zod)와 서버 액션 양쪽에서 동일 검증. 썸네일: PNG/JPG/GIF/WEBP, 최대 5MB(클라이언트에서 선검증하고 Storage 버킷 제한이 서버 측에서 강제, 서버 액션은 이미지 URL의 버킷·경로만 검증) |
 | **버튼** | [저장] / [취소]. [저장] 한 번이면 즉시 공개(게시글은 `published = true`로 항상 저장). 별도 게시 상태 토글 없음 |
 | **오류 처리** | 중복 slug → slug 필드 오류, 업로드 실패 → 글 저장 전 중단하고 재시도 안내, 글 저장 실패 시 방금 올린 썸네일 삭제 |
 
@@ -711,6 +743,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **상태** | 선택된 항목 강조(`aria-current`), 기본 선택은 '전체 보기'. 태그가 없으면 '전체 보기'만 표시 |
 | **반응형** | 데스크톱 좌측 고정 열, 모바일은 목록 상단 가로 스크롤 칩 |
 | **동작** | 클릭 시 `?tag=이름`으로 이동(페이지 파라미터 제거). 전체 보기는 파라미터 제거 |
+| **갱신** | 글 저장·수정·삭제 서버 액션이 성공하면 `revalidatePath("/")`를 호출해 새 태그(예: 글에 처음 붙인 `A`)와 개수가 사이드바에 바로 반영되게 한다. 태그는 글에 연결되어 저장된 뒤에야 사이드바에 나타난다([추가]만 하고 글을 저장하지 않은 태그는 표시되지 않음) |
 
 #### 페이지네이션 (Pagination)
 
@@ -786,7 +819,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **역할** | 기존 글 불러오기·수정·저장 |
 | **진입 경로** | 상세 하단 [수정]. 비관리자는 로그인 페이지로 리디렉션(`next` = 원래 경로) |
 | **사용자 행동** | 기존 값 수정, 썸네일 교체, 태그 변경, [저장] |
-| **주요 기능** | • Supabase에서 기존 값(썸네일, 제목, 본문, 태그) 로드해 폼 초기화<br>• 썸네일 교체 시 이전 객체 삭제<br>• 태그 변경은 매핑 삭제 후 재삽입<br>• slug 변경 시 기존 URL 무효 경고 |
+| **주요 기능** | • Supabase에서 기존 값(썸네일, 제목, 본문, 태그) 로드해 폼 초기화<br>• 썸네일 교체 시 이전 객체 삭제<br>• 태그 변경은 DB 함수 안에서 매핑 삭제 후 재삽입(한 트랜잭션)<br>• slug 변경 시 기존 URL 무효 경고 |
 | **다음 이동** | [저장] 성공 → 게시글 상세 페이지, [취소] → 게시글 상세 페이지 |
 
 - **Header**: 압축형 공통 헤더. **Body**: 단일 컬럼 폼. **Form**: PostForm(수정 모드).
@@ -854,7 +887,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **역할** | 기존 개발 일기 수정 저장 |
 | **진입 경로** | 개발 일기 상세 하단 [수정]. 비관리자는 로그인 페이지로 리디렉션(`next` = 원래 경로) |
 | **사용자 행동** | 값 수정, 썸네일 교체, 태그 변경, GitHub URL 변경/삭제, [저장] |
-| **주요 기능** | • 기존 값(썸네일, 제목, 본문, 태그, GitHub URL) 로드 후 폼 초기화<br>• 썸네일 교체 시 이전 객체 삭제<br>• 태그 변경은 `dev_log_tags` 매핑 삭제 후 재삽입 |
+| **주요 기능** | • 기존 값(썸네일, 제목, 본문, 태그, GitHub URL) 로드 후 폼 초기화<br>• 썸네일 교체 시 이전 객체 삭제<br>• 태그 변경은 DB 함수 안에서 `dev_log_tags` 매핑 삭제 후 재삽입(한 트랜잭션) |
 | **다음 이동** | [저장] 성공 → 개발 일기 상세 페이지, [취소] → 개발 일기 상세 페이지 |
 
 - **Header**: 압축형 공통 헤더. **Body**: 단일 컬럼 폼. **Form**: DevLogForm(수정 모드).
@@ -871,7 +904,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **역할** | 헤더 중앙에 표시되는 표시 이름과 프로필 이미지를 수정 |
 | **진입 경로** | 관리자 헤더 [프로필]. 비관리자가 직접 접근하면 로그인 페이지로 리디렉션(`/login?next=/profile/edit`, "관리자 로그인이 필요합니다" 안내) |
 | **사용자 행동** | 표시 이름 수정, 프로필 이미지 선택·교체·제거, [저장] 또는 [취소] |
-| **주요 기능** | • 현재 `profiles` 값(표시 이름, 이미지)으로 폼 초기화<br>• 표시 이름 검증(앞뒤 공백 제거, 1~30자, 필수)<br>• 프로필 이미지 업로드·교체·제거(PNG/JPG/GIF/WEBP, 최대 5MB, 클라이언트 + 서버 액션 양쪽 검증), 미리보기. 저장 경로 `thumbnails` 버킷의 `profile/{uuid}.{ext}`<br>• 저장 순서: 새 이미지 업로드 → `profiles` 갱신 → 이전 이미지 객체 삭제(이전 값이 null이면 삭제 없음). 갱신 실패 시 방금 올린 객체 삭제<br>• 이미지 제거 시 `avatar_url = null`(헤더는 설정값/기본 이미지로 폴백)<br>• 저장 성공 시 서버 액션에서 `revalidatePath("/", "layout")` 호출: 헤더가 쿠키를 읽는 동적 렌더링이라 서버 캐시 문제는 거의 없지만, 클라이언트 라우터 캐시를 비워 이동한 메인 페이지와 이후 모든 페이지의 헤더 중앙 프로필에 즉시 반영하기 위함<br>• 이탈 시 변경 내용 확인 |
+| **주요 기능** | • 현재 `profiles` 값(표시 이름, 이미지)으로 폼 초기화<br>• 표시 이름 검증(앞뒤 공백 제거, 1~30자, 필수)<br>• 프로필 이미지 업로드·교체·제거(PNG/JPG/GIF/WEBP, 최대 5MB, 클라이언트 선검증 + Storage 버킷 제한(서버 측 강제)), 미리보기. 저장 경로 `thumbnails` 버킷의 `profile/{uuid}.{ext}`<br>• 저장 순서: 새 이미지 업로드 → `profiles` 갱신 → 이전 이미지 객체 삭제(이전 값이 null이면 삭제 없음). 갱신 실패 시 방금 올린 객체 삭제<br>• 이미지 제거 시 `avatar_url = null`(헤더는 설정값/기본 이미지로 폴백)<br>• 저장 성공 시 서버 액션에서 `revalidatePath("/", "layout")` 호출: 헤더가 쿠키를 읽는 동적 렌더링이라 서버 캐시 문제는 거의 없지만, 클라이언트 라우터 캐시를 비워 이동한 메인 페이지와 이후 모든 페이지의 헤더 중앙 프로필에 즉시 반영하기 위함<br>• 이탈 시 변경 내용 확인 |
 | **다음 이동** | [저장] 성공 → 메인 페이지(토스트 "프로필이 저장되었습니다"), [취소] → 메인 페이지 |
 
 - **Header**: 압축형 공통 헤더. **Body**: 단일 컬럼 폼. **Form**: 프로필 폼(표시 이름 + 이미지).
@@ -892,7 +925,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | **다음 이동** | 성공 → `next` 또는 메인 페이지, 실패 → 같은 페이지(폼 오류 표시) |
 
 - **Header**: 압축형 공통 헤더. **Body**: 중앙 정렬 단일 카드 폼. **Form**: 로그인 폼(아이디 + 비밀번호).
-- **State**: 위 `idle`/`submitting`/`error`. 시도 제한은 Supabase 기본 rate limit에 의존하며 한도 초과 오류도 같은 통일 문구 또는 일반 오류로 표시한다.
+- **State**: 위 `idle`/`submitting`/`error`. 시도 제한은 3.2의 CAPTCHA 권장 사항과 Supabase 속도 제한에 의존하며 한도 초과 오류도 같은 통일 문구 또는 일반 오류로 표시한다.
 
 ---
 
@@ -948,7 +981,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 | Footer | 구형 구현 | 메인 UI에서 제외: 레이아웃에서 제거하고 `footer.tsx` 삭제 |
 | Supabase 클라이언트(`client/server/proxy/database.types`) | 완료 | `database.types.ts`는 마이그레이션 후 재생성 필요 |
 | `src/proxy.ts` 세션 갱신 | 완료 | Next.js 16 proxy 컨벤션 |
-| `posts` 테이블 + 트리거 + RLS(마이그레이션 파일) | 작성됨 | 원격 적용 여부 미확인(supabase 폴더가 미추적 상태). RLS는 강화 필요 |
+| `posts` 테이블 + 트리거 + RLS(마이그레이션 파일) | 작성됨 | **원격 적용 확인됨**(2026-10-06 조회: `public.posts` 존재·0행·RLS 켜짐, 마이그레이션 `20261006094502 create_posts_table` 기록). RLS는 강화 필요, `set_updated_at`은 `search_path` 고정 필요(보안 어드바이저 경고) |
 | `/posts` 단순 목록 | 부분 구현 | 메인(`/`)으로 이식(사이드바/페이지네이션/카드/썸네일 신규) 후 `/posts`는 리디렉션 |
 | 메인(`/`) | 임시 자리 표시자 | 블로그 목록 + 개발 일기 영역을 담은 메인 페이지로 교체 |
 | 날씨·시간 헤더, 로그인(아이디/비밀번호), 관리자 제어, 프로필 수정, 태그, 개발 일기, Storage, 작성/수정 폼 | 미구현 | |
@@ -961,10 +994,10 @@ create policy "thumbnails_delete_admin" on storage.objects
 #### Phase 1. 데이터/보안 기반
 
 - [x] `posts` 테이블, `set_updated_at` 트리거 (기존)
-- [ ] 기존 마이그레이션의 원격 적용 상태 확인
+- [x] 기존 마이그레이션의 원격 적용 상태 확인(적용됨, `posts` 0행)
 - [ ] `admin_allowlist`(`user_id uuid` PK → `auth.users`, on delete cascade), `profiles`(`id`, `display_name`, `avatar_url`, `created_at`; SELECT 공개 / INSERT·UPDATE는 본인 관리자 한정), `is_admin()`(allowlist `user_id` 대조) 신규 마이그레이션 (이전 설계가 이미 적용돼 있다면 변경분을 새 마이그레이션으로 처리)
-- [ ] `posts` RLS 교체(관리자 한정), `thumbnail_url` 추가, `published` 기본값 true
-- [ ] `tags`(`lower(name)` 고유 인덱스), `post_tags`, `dev_logs`(`github_url` 포함), `dev_log_tags` 테이블 + RLS
+- [ ] `posts` RLS 교체(관리자 한정), `thumbnail_url` 추가, `published` 기본값 true, `set_updated_at` 함수 `search_path` 고정(보안 어드바이저 경고 해소)
+- [ ] `tags`(`lower(name)` 고유 인덱스), `post_tags`, `dev_logs`(`github_url` 포함), `dev_log_tags` 테이블 + RLS, `add_tag` DB 함수
 - [ ] `thumbnails` 버킷 + Storage 정책 (프로필 이미지는 같은 버킷의 `profile/` 경로를 사용하므로 추가 정책 없음)
 - [ ] 관리자 user id 시드(대시보드에서 계정 생성 후 SQL Editor에서 1회 insert, 저장소에 커밋하지 않음 — Phase 2의 계정 생성 이후 수행)
 - [ ] `database.types.ts` 재생성
@@ -972,8 +1005,9 @@ create policy "thumbnails_delete_admin" on storage.objects
 
 #### Phase 2. 인증 (F011, F012)
 
-- [ ] Supabase 대시보드에서 관리자 계정 1개 생성(이메일 형식 ID, 강한 비밀번호), **신규 가입 허용 끄기(필수)**, 다른 provider 비활성화
+- [ ] Supabase 대시보드에서 관리자 계정 1개 생성(이메일 형식 ID, 강한 비밀번호), **신규 가입 허용 끄기(필수)**, 다른 provider 비활성화, Anonymous sign-ins 꺼짐 확인
 - [ ] 허용 목록 시드: 생성한 계정의 user id를 `admin_allowlist`에 1회 insert (Phase 1 시드 항목과 동일 작업)
+- [ ] (권장) 로그인 폼 CAPTCHA(Turnstile) 적용 검토(서버 액션 호출 시 IP 기준 속도 제한 문제)
 - [ ] Zod 설치, 로그인 페이지(폼 상태 idle/submitting/error, 클라이언트 Zod 검증, `next` 내부 경로 검증, 로그인 상태면 메인 리디렉션)
 - [ ] 로그인 서버 액션(`signInWithPassword` → `is_admin()` 확인 → 허용 목록 외 즉시 `signOut` → `profiles` 없을 때만 insert → 이동, 통일 오류 문구)와 로그아웃 서버 액션
 - [ ] 서버 공용 관리자 검증 유틸(페이지·서버 액션 공유, 비관리자는 `/login?next=<원래 경로>`로 리디렉션)
@@ -1001,17 +1035,19 @@ create policy "thumbnails_delete_admin" on storage.objects
 #### Phase 5. 메인 페이지 블로그 읽기 (F001, F002, F003)
 
 - [ ] 메인 페이지: 태그 사이드바, 4개/페이지, 페이지네이션, 카드(썸네일/요약/날짜), 상태 처리(빈/오류/로딩)
-- [ ] `/posts` → `/` 영구 리디렉션, 기존 `/posts` 페이지 삭제
+- [ ] `/posts` → `/` 리디렉션(처음엔 307), 기존 `/posts` 페이지 삭제
 - [ ] 게시글 상세 페이지(마크다운 렌더링, 404 처리)
 - [ ] sitemap에 공개 글 URL 반영
 
 #### Phase 6. 게시글 작성/수정 (F004, F005, F009, F010)
 
 - [ ] 폼 라이브러리/마크다운 라이브러리 설치
-- [ ] 썸네일 업로드(검증, 미리보기, 교체/삭제 시 정리)
+- [ ] 썸네일 업로드(브라우저→Storage 직접 업로드, 서버 액션에는 파일 본문을 보내지 않음, 검증, 미리보기, 교체/삭제 시 정리, 저장 시 URL 경로 검증)
 - [ ] TagPicker(검색 선택 + [추가] 서버 액션 `createTag`, 대소문자 무시 중복 처리·정규화 단위 테스트)
 - [ ] 게시글 작성 페이지([저장] 즉시 공개), 수정 페이지, 삭제, 헤더 [작성] 연결
 - [ ] 서버 액션 관리자 재검증, slug 검증(예약어 `new` 포함)
+- [ ] 글 저장 DB 함수 `save_post`(글 행 + 태그 매핑을 한 트랜잭션, security invoker)와 이를 호출하는 서버 액션 (개발 일기용 `save_dev_log`는 Phase 8)
+- [ ] 글 저장·수정·삭제 성공 후 `revalidatePath("/")` 호출, 새 태그 글 저장 후 사이드바에 태그와 개수가 나타나고 클릭 시 필터링되는지 확인(E2E)
 
 #### Phase 7. 프로필 수정 (F021)
 
@@ -1023,7 +1059,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 #### Phase 8. 개발 일기 (F006, F007, F018, F019, F020)
 
 - [ ] 개발 일기 목록/상세(태그·GitHub 링크 표시)
-- [ ] DevLogForm: 게시글 폼 필드 재사용 + GitHub URL(형식 검증), 작성/수정/삭제, `dev_log_tags` 저장
+- [ ] DevLogForm: 게시글 폼 필드 재사용 + GitHub URL(형식 검증), 작성/수정/삭제, `dev_log_tags` 저장, 저장·수정·삭제 성공 후 `revalidatePath("/")`로 메인 개발 일기 영역 갱신
 - [ ] DevLogCard, DevLogSection(최신 4개 카드를 스크롤 없는 그리드로 표시: 데스크톱 4열 / 모바일 2x2, 우측 [게시] 버튼)
 - [ ] 메인 페이지 게시글 목록 아래에 개발 일기 영역 삽입, [개발 일기 더 보기] 연결
 - [ ] sitemap에 개발 일기 URL 반영
@@ -1057,10 +1093,9 @@ create policy "thumbnails_delete_admin" on storage.objects
 | 11 | 요약 생성 | 별도 컬럼 없이 본문 앞부분을 발췌 후 CSS 3줄 말줄임 | 수동 요약 입력 필요 여부 |
 | 12 | 썸네일 | 필수 아님(없으면 기본 이미지), 5MB 이하, PNG/JPG/GIF/WEBP | 용량 제한/필수 여부 |
 | 13 | 키 사용 | service role 키는 사용하지 않고 로그인한 관리자 권한 + RLS로만 동작 (profiles 쓰기 정책은 2.4에 포함) | service role 키가 필요한 요구가 생기는지 |
-| 14 | 마이그레이션 적용 | 기존 `posts` 마이그레이션이 원격에 적용되었는지 불명 | 적용 여부에 따라 새 마이그레이션 구성 |
-| 15 | 본문 내 이미지 | MVP 제외(썸네일만) | 본문 이미지 업로드 필요 여부 |
-| 16 | 안전한 렌더링 | 마크다운은 원시 HTML 비허용으로 렌더링 | 관리자 본인만 작성하므로 허용해도 되는지 |
-| 17 | 개발 일기 식별/목록 | URL은 id(uuid), 목록은 페이지당 4개(메인 목록과 동일 규칙) | 목록 페이지당 개수를 달리할지 |
-| 18 | GitHub 저장소 URL | `https://github.com/…` 형식만 허용(다른 호스트 거부) | GitLab 등 다른 호스트 허용 필요 여부 |
-| 19 | 로그인 오류·시도 제한·세션 | 실패 문구는 "아이디 또는 비밀번호가 올바르지 않습니다" 한 가지로 통일. 로그인 시도 제한은 Supabase Auth 기본 rate limit에 의존(CAPTCHA는 이후 보강, MVP 제외). 세션 유지 기간은 Supabase 기본값 | 기본 rate limit/세션 기간으로 충분한가 |
-| 20 | DB 설계 변경 처리 | `profiles`(GitHub 컬럼 제거)와 `admin_allowlist`(`user_id` 기반) 변경은 신규 마이그레이션으로 처리. 기존 `posts` 마이그레이션은 수정하지 않음 | 이전 설계의 allowlist/profiles가 원격에 이미 적용됐는지(적용됐다면 drop 후 재생성 또는 alter) |
+| 14 | 본문 내 이미지 | MVP 제외(썸네일만) | 본문 이미지 업로드 필요 여부 |
+| 15 | 안전한 렌더링 | 마크다운은 원시 HTML 비허용으로 렌더링 | 관리자 본인만 작성하므로 허용해도 되는지 |
+| 16 | 개발 일기 식별/목록 | URL은 id(uuid), 목록은 페이지당 4개(메인 목록과 동일 규칙) | 목록 페이지당 개수를 달리할지 |
+| 17 | GitHub 저장소 URL | `https://github.com/…` 형식만 허용(다른 호스트 거부) | GitLab 등 다른 호스트 허용 필요 여부 |
+| 18 | 로그인 오류·시도 제한·세션 | 실패 문구는 "아이디 또는 비밀번호가 올바르지 않습니다" 한 가지로 통일. 로그인 시도 제한은 Supabase 속도 제한(IP 기준, 서버 액션 호출 시 서버 IP로 보임)에 의존하므로 CAPTCHA(Turnstile) 적용을 권장. 세션 유지 기간은 Supabase 기본값 | CAPTCHA를 MVP부터 적용할 것인가 / 세션 기간 |
+| 19 | DB 설계 변경 처리 | `profiles`(GitHub 컬럼 제거)와 `admin_allowlist`(`user_id` 기반) 변경은 신규 마이그레이션으로 처리. 기존 `posts` 마이그레이션은 수정하지 않음 | - (2026-10-06 원격 조회 결과 `public`에는 `posts`만 있고 `profiles`/`admin_allowlist`는 없어 신규 생성으로 처리) |
