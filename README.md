@@ -1,6 +1,6 @@
-# Next.js Starter Kit
+# profile0919-blog
 
-Next.js 16, TypeScript, TailwindCSS v4, shadcn/ui 기반의 스타터킷입니다.
+Next.js 16, TypeScript, TailwindCSS v4, shadcn/ui, Supabase 기반의 개인 블로그입니다.
 
 ## 기술 스택
 
@@ -47,8 +47,7 @@ E2E 테스트를 처음 실행하기 전에 `npx playwright install chromium`으
 src/
 ├── app/            # App Router (layout, page, 오류·404·로딩, robots, sitemap, globals.css)
 ├── components/     # 공통 컴포넌트 (header, nav-link, footer, theme-*)
-│   ├── home/       # 홈페이지 섹션
-│   └── ui/         # shadcn/ui 컴포넌트 (button, card, dialog, input, sonner 등)
+│   └── ui/         # shadcn/ui 컴포넌트 (button, card, input, label, sonner)
 ├── config/         # 사이트 설정 (site.ts: 이름, 버전, 네비게이션)
 └── lib/            # 유틸리티 (cn 등)
 e2e/                # Playwright E2E 테스트

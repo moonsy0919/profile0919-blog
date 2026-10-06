@@ -2,15 +2,15 @@ import { expect, test } from "@playwright/test";
 
 test("홈페이지가 렌더링된다", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/Next\.js Starter Kit/);
+  await expect(page).toHaveTitle(/profile0919/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
-test("헤더 링크로 소개 페이지로 이동한다", async ({ page }) => {
+test("헤더 링크로 블로그 페이지로 이동한다", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "소개" }).click();
-  await expect(page).toHaveURL(/\/about$/);
-  await expect(page.getByRole("heading", { name: "소개" })).toBeVisible();
+  await page.getByRole("link", { name: "블로그" }).click();
+  await expect(page).toHaveURL(/\/posts$/);
+  await expect(page.getByRole("heading", { name: "블로그" })).toBeVisible();
 });
 
 test("테마 토글이 다크 모드를 켜고 끈다", async ({ page }) => {
@@ -40,15 +40,15 @@ test("robots.txt와 sitemap.xml을 제공한다", async ({ request }) => {
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.ok()).toBe(true);
-  expect(await sitemap.text()).toContain("/about");
+  expect(await sitemap.text()).toContain("/posts");
 });
 
 test("현재 페이지의 네비게이션 링크에 aria-current가 표시된다", async ({
   page,
 }) => {
-  await page.goto("/about");
+  await page.goto("/posts");
   const nav = page.getByRole("navigation", { name: "주요 메뉴" });
-  await expect(nav.getByRole("link", { name: "소개" })).toHaveAttribute(
+  await expect(nav.getByRole("link", { name: "블로그" })).toHaveAttribute(
     "aria-current",
     "page",
   );

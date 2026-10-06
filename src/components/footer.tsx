@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { siteConfig } from "@/config/site";
 
-/** 사이트 공통 하단 푸터 (기술 스택 안내, 저장소 링크, 저작권) */
+/** 사이트 공통 하단 푸터 (사이트 이름, 저장소 링크, 저작권) */
 export function Footer() {
   const year = new Date().getFullYear();
 
@@ -9,7 +9,7 @@ export function Footer() {
     <footer className="border-t border-border bg-background">
       <div className="container mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <p className="text-sm text-muted-foreground">
-          Next.js · shadcn/ui · TailwindCSS v4로 구축되었습니다.
+          {siteConfig.name}
           {siteConfig.githubUrl && (
             <>
               {" "}

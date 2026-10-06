@@ -34,9 +34,8 @@ npm run check       # lint + typecheck + test + build
 src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 전역 레이아웃: 폰트, ThemeProvider, skip link, Header, Footer, Toaster
-│   ├── page.tsx           # 홈페이지 (components/home/의 섹션 조합)
-│   ├── about/page.tsx     # 소개 페이지
-│   ├── docs/page.tsx      # 문서 페이지
+│   ├── page.tsx           # 메인 페이지 (현재 임시 자리 표시자, 로그인 후 화면으로 교체 예정)
+│   ├── posts/page.tsx     # 블로그 글 목록 (Supabase posts 테이블)
 │   ├── not-found.tsx      # 404 페이지
 │   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
@@ -49,7 +48,6 @@ src/
 │   └── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL)와 NAV_LINKS의 단일 출처
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
-│   ├── home/              # 홈페이지 섹션 컴포넌트
 │   ├── header.tsx         # 서버 컴포넌트, NAV_LINKS로 네비게이션 구성
 │   ├── nav-link.tsx       # "use client" — 현재 경로를 강조하고 aria-current 표시
 │   ├── footer.tsx         # 서버 컴포넌트, siteConfig.githubUrl이 비어 있으면 GitHub 링크 숨김
