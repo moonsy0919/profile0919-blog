@@ -1,0 +1,129 @@
+/* 하늘 3색을 색상 타입으로 등록해, 값이 바뀔 때 그라디언트가 부드럽게 전환되게 한다. */
+@property --sky-1 {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgb(28, 111, 209);
+}
+
+@property --sky-2 {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgb(61, 143, 224);
+}
+
+@property --sky-3 {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: rgb(125, 185, 238);
+}
+
+.sky {
+  background: linear-gradient(
+    180deg,
+    var(--sky-1) 0%,
+    var(--sky-2) 55%,
+    var(--sky-3) 100%
+  );
+  transition:
+    --sky-1 0.8s ease,
+    --sky-2 0.8s ease,
+    --sky-3 0.8s ease;
+}
+
+/* 별·광채 레이어도 날씨가 바뀔 때 함께 서서히 바뀐다. */
+.fade {
+  transition: opacity 0.8s ease;
+}
+
+.drop {
+  animation: drop-fall var(--dur) linear var(--delay) infinite;
+}
+
+.flake {
+  animation: flake-fall var(--dur) linear var(--delay) infinite;
+}
+
+.flashScreen {
+  opacity: 0;
+  animation: flash-screen 7s linear infinite;
+}
+
+.flashBolt {
+  opacity: 0;
+  animation: flash-bolt 7s linear infinite;
+}
+
+@keyframes drop-fall {
+  from {
+    transform: translate(var(--from-x), -30px);
+  }
+
+  to {
+    transform: translate(var(--to-x), 240px);
+  }
+}
+
+@keyframes flake-fall {
+  from {
+    transform: translate(0, -10px);
+  }
+
+  to {
+    transform: translate(var(--to-x), 215px);
+  }
+}
+
+@keyframes flash-screen {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+  }
+
+  88% {
+    opacity: 0.5;
+  }
+
+  90% {
+    opacity: 0.05;
+  }
+
+  92% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes flash-bolt {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+  }
+
+  88% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 0;
+  }
+
+  92% {
+    opacity: 0.8;
+  }
+}
+
+/* 움직임 줄이기: 애니메이션을 멈추고 정지 상태로 보여 준다. */
+@media (prefers-reduced-motion: reduce) {
+  .sky,
+  .fade {
+    transition: none;
+  }
+
+  .drop,
+  .flake,
+  .flashScreen,
+  .flashBolt {
+    animation-play-state: paused;
+  }
+}
