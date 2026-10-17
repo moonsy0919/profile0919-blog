@@ -14,3 +14,11 @@ src/components/ui
 # Next.js가 관리하는 에이전트 규칙 파일과 로컬 도구 설정은 건드리지 않는다
 AGENTS.md
 .claude
+.mcp.json
+supabase/.temp
+
+# Supabase CLI가 생성하는 타입 파일은 원본 형태를 유지한다
+src/lib/supabase/database.types.ts
+
+# 디자인 참조 시안은 Task 007-1에서 삭제할 때까지 포맷 대상에서 제외한다
+docs/design/weather-header.reference.dc.html
