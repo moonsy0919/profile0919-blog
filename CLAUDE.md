@@ -39,7 +39,6 @@ src/
 │   ├── not-found.tsx      # 404 페이지
 │   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
-│   ├── loading.tsx        # 로딩 UI
 │   ├── robots.ts          # /robots.txt
 │   ├── sitemap.ts         # /sitemap.xml (NAV_LINKS 기반)
 │   ├── icon.svg           # 파비콘
@@ -54,9 +53,12 @@ src/
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
+    ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
 e2e/                       # Playwright E2E 테스트
 ```
+
+**더미 게이트와 HTTP 404**: 프로덕션에서 더미 경로를 닫을 때는 `assertDevOnly()`를 Suspense 경계보다 바깥(layout, 또는 `loading.tsx`가 없는 세그먼트의 page 최상단)에서 호출한다. `loading.tsx`나 `<Suspense>` 안에서 `notFound()`를 부르면 화면은 404여도 HTTP 상태 코드가 200이 된다. 그래서 루트 `loading.tsx`는 두지 않고, 로딩 UI는 데이터를 가져오는 세그먼트에만 둔다.
 
 **컴포넌트 기본 원칙**: 레이아웃과 페이지는 기본적으로 Server Component. 상태/이벤트/브라우저 API가 필요할 때만 `"use client"` 추가.
 
