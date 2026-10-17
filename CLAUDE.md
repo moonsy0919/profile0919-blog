@@ -33,23 +33,25 @@ npm run check       # lint + typecheck + test + build
 ```
 src/
 ├── app/                   # App Router 루트
-│   ├── layout.tsx         # 전역 레이아웃: 폰트, ThemeProvider, skip link, Header, Footer, Toaster
-│   ├── page.tsx           # 메인 페이지 (현재 임시 자리 표시자, 로그인 후 화면으로 교체 예정)
-│   ├── posts/page.tsx     # 블로그 글 목록 (Supabase posts 테이블)
-│   ├── not-found.tsx      # 404 페이지
-│   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용)
+│   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
+│   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx 임시 자리 표시자)
+│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 빈 라우트: posts/[slug], posts/new, dev-logs, dev-logs/[id], dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
+│   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기
+│   ├── api/weather/       # 공개 날씨 API (Route Handler)
+│   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
+│   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용, 압축형 헤더 포함)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
 │   ├── robots.ts          # /robots.txt
-│   ├── sitemap.ts         # /sitemap.xml (NAV_LINKS 기반)
+│   ├── sitemap.ts         # /sitemap.xml (SITEMAP_PATHS 기반, 열린 경로만)
 │   ├── icon.svg           # 파비콘
 │   └── globals.css        # TailwindCSS v4 진입점 + CSS 변수(라이트/다크 테마)
 ├── config/
-│   └── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL)와 NAV_LINKS의 단일 출처
+│   └── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL)와 SITEMAP_PATHS의 단일 출처
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
-│   ├── header.tsx         # 서버 컴포넌트, NAV_LINKS로 네비게이션 구성
-│   ├── nav-link.tsx       # "use client" — 현재 경로를 강조하고 aria-current 표시
-│   ├── footer.tsx         # 서버 컴포넌트, siteConfig.githubUrl이 비어 있으면 GitHub 링크 숨김
+│   ├── header.tsx         # 서버 컴포넌트, variant(expanded/compact)에 따라 data-header-variant 표시
+│   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
+│   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/

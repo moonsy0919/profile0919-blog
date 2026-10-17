@@ -30,8 +30,8 @@ export const siteConfig = {
   githubUrl: "",
 } as const;
 
-/** 헤더 네비게이션 링크 목록. 새 페이지를 만들면 여기에 추가한다. */
-export const NAV_LINKS = [
-  { href: "/", label: "홈" },
-  { href: "/posts", label: "블로그" },
-] as const;
+/**
+ * 사이트맵에 포함할 정적 경로. 프로덕션에서 열려 있는 경로만 넣는다.
+ * /dev-logs는 더미 게이트가 풀리는 Task 018에서 추가한다. 글 상세 URL은 Task 017에서 DB 기반으로 추가한다.
+ */
+export const SITEMAP_PATHS = ["/"] as const;
