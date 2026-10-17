@@ -892,7 +892,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 
 ##### ⑧ 가독성, 높이, 성능, 접근성
 
-"현재"는 구현된 UI의 상태이고, **보강**은 PRD 요건을 충족하도록 이식 단계에서 고쳐야 하는 항목이다(ROADMAP Task 007-3).
+"현재"는 구현된 UI의 상태이고, **보강**은 PRD 요건을 충족하도록 이식 단계에서 고쳐야 하는 항목이다(ROADMAP Task 008-2).
 
 | 항목                         | 요건                                                                                             | 현재                                                                                                                                          | 처리                                                                                           |
 | ---------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -924,7 +924,7 @@ create policy "thumbnails_delete_admin" on storage.objects
 
 **참고 자료**
 
-- 현재 UI는 디자인 시안 `docs/design/weather-header.reference.dc.html`을 React·TypeScript로 옮긴 것이다. 이식이 끝나면 시안 파일은 삭제한다(ROADMAP Task 007-1).
+- 현재 UI는 디자인 시안 `docs/design/weather-header.reference.dc.html`을 React·TypeScript로 옮긴 것이다. 이식이 끝나면 시안 파일은 삭제한다(ROADMAP Task 004).
 - 초기 PRD는 아이폰 날씨 앱의 레이어 장면 구조(하늘 → 천체 → 구름 → 입자 → 정보 패널, Reduce Motion 정적 대체)를 개념만 참고했다. 공식 구현 문서가 없고 일부는 제3자 역공학 자료이므로 **Apple의 에셋·코드는 사용하지 않는다.**
   - 장면 레이어 설계와 Reduce Motion 대체: [vp0 — weather app animated background (SwiftUI)](https://vp0.com/blogs/weather-app-animated-background-swiftui)
   - iOS 날씨 앱 배경(Core Animation 레이어, 구름 타일, 입자 에미터, 낮/밤 장면)의 역공학 분석: [iamvinny/weather-app](https://github.com/iamvinny/weather-app)
