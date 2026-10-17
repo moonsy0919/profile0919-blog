@@ -1,16 +1,35 @@
 import { expect, test } from "@playwright/test";
 
+/** 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다) */
+const gatedPaths = [
+  "/dev-logs",
+  "/dev-logs/1",
+  "/dev-logs/new",
+  "/login",
+  "/posts/hello",
+  "/posts/new",
+  "/profile/edit",
+  "/weather-header",
+];
+
 test("홈페이지가 렌더링된다", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/profile0919/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
-test("헤더 링크로 블로그 페이지로 이동한다", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("link", { name: "블로그" }).click();
-  await expect(page).toHaveURL(/\/posts$/);
-  await expect(page.getByRole("heading", { name: "블로그" })).toBeVisible();
+test("/posts는 쿼리를 유지한 채 메인으로 임시 리디렉션된다", async ({
+  page,
+  request,
+}) => {
+  const redirect = await request.get("/posts?tag=react&page=2", {
+    maxRedirects: 0,
+  });
+  expect(redirect.status()).toBe(307);
+  expect(redirect.headers()["location"]).toBe("/?tag=react&page=2");
+
+  await page.goto("/posts");
+  await expect(page).toHaveURL(/\/$/);
 });
 
 test("테마 토글이 다크 모드를 켜고 끈다", async ({ page }) => {
@@ -33,27 +52,75 @@ test("존재하지 않는 경로는 404 페이지를 보여준다", async ({ pag
   await expect(page).toHaveURL(/\/$/);
 });
 
-test("robots.txt와 sitemap.xml을 제공한다", async ({ request }) => {
+test("메인은 확장형, 404는 압축형 헤더를 하나만 렌더링한다", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const mainHeader = page.locator("header");
+  await expect(mainHeader).toHaveCount(1);
+  await expect(mainHeader).toHaveAttribute("data-header-variant", "expanded");
+
+  await page.goto("/does-not-exist");
+  const notFoundHeader = page.locator("header");
+  await expect(notFoundHeader).toHaveCount(1);
+  await expect(notFoundHeader).toHaveAttribute(
+    "data-header-variant",
+    "compact",
+  );
+});
+
+test("헤더는 main 밖에 있고 메뉴 네비게이션과 푸터가 없다", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(page.getByRole("banner")).toHaveCount(1);
+  await expect(page.locator("main header")).toHaveCount(0);
+  await expect(page.getByRole("navigation")).toHaveCount(0);
+  await expect(page.getByRole("contentinfo")).toHaveCount(0);
+});
+
+test("robots.txt와 sitemap.xml을 제공하고 닫힌 경로는 사이트맵에 없다", async ({
+  request,
+}) => {
   const robots = await request.get("/robots.txt");
   expect(robots.ok()).toBe(true);
   expect(await robots.text()).toContain("Sitemap:");
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.ok()).toBe(true);
-  expect(await sitemap.text()).toContain("/posts");
+  const body = await sitemap.text();
+  for (const closedPath of [
+    "/posts",
+    "/login",
+    "/api/weather",
+    "/weather-header",
+  ]) {
+    expect(body).not.toContain(closedPath);
+  }
 });
 
-test("현재 페이지의 네비게이션 링크에 aria-current가 표시된다", async ({
-  page,
-}) => {
-  await page.goto("/posts");
-  const nav = page.getByRole("navigation", { name: "주요 메뉴" });
-  await expect(nav.getByRole("link", { name: "블로그" })).toHaveAttribute(
-    "aria-current",
-    "page",
+test("/api/weather 응답에는 Set-Cookie가 붙지 않는다", async ({ request }) => {
+  const response = await request.get("/api/weather");
+  // 외부 API 상태와 무관하게(200/502 모두) 쿠키는 설정되지 않아야 한다.
+  expect([200, 502]).toContain(response.status());
+  expect(response.headers()["set-cookie"]).toBeUndefined();
+});
+
+test.describe("더미 게이트 (프로덕션 빌드 전용)", () => {
+  test.skip(
+    !process.env.CI,
+    "개발 서버에서는 더미 경로가 열려 있어 프로덕션 빌드(CI)에서만 검증한다",
   );
-  await expect(nav.getByRole("link", { name: "홈" })).not.toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+
+  for (const path of gatedPaths) {
+    test(`${path} 는 HTTP 404를 반환한다`, async ({ page, request }) => {
+      const response = await request.get(path);
+      expect(response.status()).toBe(404);
+
+      await page.goto(path);
+      await expect(
+        page.getByRole("heading", { name: "페이지를 찾을 수 없습니다" }),
+      ).toBeVisible();
+    });
+  }
 });
