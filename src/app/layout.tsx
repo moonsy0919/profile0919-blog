@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
 
@@ -38,7 +36,7 @@ export const metadata: Metadata = {
   },
 };
 
-/** 모든 페이지를 감싸는 루트 레이아웃 (폰트, 테마, 헤더, 푸터) */
+/** 모든 페이지를 감싸는 루트 레이아웃 (폰트, 테마, skip link). 헤더와 main은 라우트 그룹 레이아웃이 렌더링한다 */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,11 +61,7 @@ export default function RootLayout({
           >
             본문으로 바로가기
           </a>
-          <Header />
-          <main id="main-content" className="flex-1">
-            {children}
-          </main>
-          <Footer />
+          {children}
           <Toaster />
         </ThemeProvider>
       </body>
