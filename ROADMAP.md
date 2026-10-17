@@ -22,7 +22,7 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
 - **날씨·시간 헤더 UI와 데이터 계층 구현됨(미이식, main 반영 완료, 2026-10-13)**: `docs/design/weather-header/`(날씨 11종 × 시간대 6종, Open-Meteo, `/api/weather`, 단위 테스트 포함). `src/app/api/weather/route.ts`·`src/app/(dev)/weather-header/page.tsx`가 이를 임시 re-export하고 `vitest.config.mts`에 `docs/design/**` include가 추가돼 있음. PRD 4.4 SkyHeader·2.1.1을 이 구현 기준으로 갱신했고 Task 004·005·007·016을 이에 맞게 조정함
 - `src/proxy.ts` 매처에서 `/api/weather`를 제외함(2026-10-13, 매처 단위 테스트는 아직 없음). `/api/weather`는 인증·속도 제한이 없는 공개 엔드포인트라는 한계를 PRD 2.1.1에 기록(필요 시 `Cache-Control: s-maxage`로 대응)
 - 날씨 구현은 `c49300c`·`7621729`·`c3b299e`로 **main에 반영돼 프로덕션에 `/api/weather`가 공개 중**(2026-10-14 확인, 서울 날씨 JSON 200). 날씨 UI는 어떤 실제 페이지에도 붙지 않았고, `/weather-header`는 Task 003에서 HTTP 404로 바로잡았다(2026-10-18 프로덕션에서 확인)
-- `npm run format:check`는 Task 003에서 복구해 로컬에서 통과한다(2026-10-18). 원격 CI가 초록인지는 `gh`가 없어 아직 확인하지 못했다(GitHub Actions 화면에서 확인 필요)
+- `npm run format:check`는 Task 003에서 복구해 로컬에서 통과한다(2026-10-18). 원격 CI도 초록이다(#28·#29). 이전 #27의 e2e 실패는 삭제한 옛 `/posts` 블로그 링크 테스트였다
 - **개발 방식(2026-10-14 확정)**: 브랜치 없이 main에서 로드맵 순서대로 커밋·푸시한다. 프로덕션 보호는 아래 "배포 정책"의 더미 게이트로 한다
 - 이식 전 알려진 부족분(PRD 4.4 ⑧ "보강"): 글자 대비, reduced-motion 정적 대체, 일시정지, 모바일 입자 절반, 출처 표기 — Task 007-3에서 처리
 
@@ -82,7 +82,7 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
 
 ### Phase 1: 기본 베이스 뼈대 설계
 
-- **Task 003: 라우트·레이아웃 골격** - 코드 완료 (수동 Supabase 설정만 남음)
+- **Task 003: 라우트·레이아웃 골격** ✅ - 완료
   - ✅ `proxy.ts` 보강 커밋·푸시(`b5b12c8`)
   - ✅ 라우트 그룹 구성(`(main)`·`(site)`·`(dev)` + 공용 `PageShell`, 2026-10-18): 메인 = 확장형 헤더, 그 외 = 압축형 헤더. 지금은 루트 `layout.tsx`가 `Header`·`Footer`를 렌더링하므로 그룹 레이아웃으로 옮기고, 404·오류 화면은 압축형 헤더를 직접 렌더링한다(PRD 2.1)
   - ✅ PRD 2.2의 모든 라우트에 빈 페이지 생성(`/`, `/posts/[slug]`, `/posts/new`, `/dev-logs`, `/dev-logs/[id]`, `/dev-logs/new`, `/login`, `/profile/edit`). 수정 화면은 별도 `/edit` 라우트 없이 상세 URL의 `?edit=1`로 처리한다
@@ -90,13 +90,13 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
   - ✅ **기존 테스트 갱신**: 위 변경으로 `e2e/smoke.spec.ts`(블로그 링크 이동, `/posts`의 `aria-current`, sitemap의 `/posts`)와 `src/components/footer.test.tsx`가 깨지므로 새 구조에 맞게 고치거나 삭제한다
   - ✅ `src/proxy.ts` 매처에서 `api/weather` 제외(폴링마다 세션 갱신이 돌지 않게, 2026-10-13 수정. 실제 제외 여부는 아래 매처 단위 테스트로 확인)
   - ✅ 날씨용 라우트 정리: `/api/weather`(공개 GET)와 개발 전용 `/weather-header`가 `sitemap`·내비게이션 대상이 아님을 확인
-  - ✅ **CI 복구**: `npm run format:check` 실패 파일 정리 — `docs/PRD.md`는 포맷만 하는 단독 커밋, 생성 파일 `src/lib/supabase/database.types.ts`는 `.prettierignore`에 추가, 참조 HTML(`weather-header.reference.dc.html`)은 7-1에서 삭제할 때까지 무시. 푸시 후 CI가 초록인지 확인(로컬 `format:check` 통과·푸시 완료, **원격 CI 결과는 미확인**)
+  - ✅ **CI 복구**: `npm run format:check` 실패 파일 정리 — `docs/PRD.md`는 포맷만 하는 단독 커밋, 생성 파일 `src/lib/supabase/database.types.ts`는 `.prettierignore`에 추가, 참조 HTML(`weather-header.reference.dc.html`)은 7-1에서 삭제할 때까지 무시. 푸시 후 CI가 초록인지 확인(원격 CI #28·#29 초록 확인, 2026-10-18)
   - ✅ **더미 게이트 헬퍼** 한 곳(프로덕션이면 `notFound()`)을 만들고 더미 기반 빈 페이지에 적용, 프로덕션 빌드에서 더미 경로가 **HTTP 404**인지 확인(루트 `loading.tsx` 때문에 화면은 404인데 상태 코드가 200이 되는 문제를 함께 해결)
   - ✅ `/weather-header`의 프로덕션 **HTTP 상태 코드가 200**인 원인을 확인해 404로 바로잡기(페이지 스트리밍 시작 후 `notFound()`가 호출되는 것으로 추정, `loading.tsx`·Suspense 영향 확인)
   - ✅ `src/proxy.test.ts`: 매처가 `/api/weather`는 제외하고 `/api/weatherx`·`/posts`·`/login`은 대상으로 두는지 단위 테스트(`proxy.ts`가 `next/server`를 import하므로 jsdom이 아니라 node 환경으로 실행)
   - ✅ `/api/weather` 응답에 `Set-Cookie`가 붙지 않는지 확인(공개 캐시 도입의 전제 조건)
-  - [ ] (수동) **Supabase 신규 가입 허용 끄기·다른 provider·익명 로그인 끄기**: 사이트가 이미 공개돼 있어 구 Task 014에서 앞당긴다
-  - 구현 메모(2026-10-18): 루트 `loading.tsx`를 **삭제**했다(Suspense 경계 안에서는 `notFound()`가 HTTP 200이 되므로, 로딩 UI는 데이터를 가져오는 세그먼트에만 둔다). 사이트맵은 열린 경로만 담는 `SITEMAP_PATHS=["/"]`로 대체했고 `/dev-logs`는 Task 018에서 추가한다. 게이트된 경로의 서버 HTML은 기본 오류 문서이며 hydration 후 404 화면이 뜬다. `gh`가 없어 원격 CI 초록 여부는 아직 확인하지 못했다
+  - ✅ (수동) **Supabase 신규 가입 허용 끄기·다른 provider·익명 로그인 끄기**: 사이트가 이미 공개돼 있어 구 Task 014에서 앞당겼다(2026-10-18 대시보드 확인: 신규 가입·익명 로그인 꺼짐, Email만 Enabled)
+  - 구현 메모(2026-10-18): 루트 `loading.tsx`를 **삭제**했다(Suspense 경계 안에서는 `notFound()`가 HTTP 200이 되므로, 로딩 UI는 데이터를 가져오는 세그먼트에만 둔다). 사이트맵은 열린 경로만 담는 `SITEMAP_PATHS=["/"]`로 대체했고 `/dev-logs`는 Task 018에서 추가한다. 게이트된 경로의 서버 HTML은 기본 오류 문서이며 hydration 후 404 화면이 뜬다. 원격 CI(#28·#29)는 초록이다. 이전 #27의 e2e 실패는 삭제한 옛 `/posts` 블로그 링크 테스트 때문이었다
   - 수락: 개발 환경에서 모든 라우트가 열리고, 프로덕션에서는 더미 경로가 404이며 `/`는 현재 임시 화면을 유지한다. `npm run check`와 `npm run format:check` 통과, CI(lint·format·typecheck·test·build·e2e) 초록
   - 참조: PRD 2.1, 2.1.1, 2.2
 
