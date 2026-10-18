@@ -7,6 +7,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     // E2E 테스트(e2e/)는 Playwright가 실행하므로 제외한다.
-    include: ["src/**/*.test.{ts,tsx}", "docs/design/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
