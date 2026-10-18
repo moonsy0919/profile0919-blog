@@ -1,4 +1,5 @@
 import pkg from "../../package.json";
+import { weatherConfig } from "./weather";
 
 /**
  * 사이트 배포 주소를 결정한다.
@@ -28,6 +29,8 @@ export const siteConfig = {
   version: `v${pkg.version}`,
   /** 저장소 주소. 비워두면 GitHub 링크가 화면에서 숨겨진다. */
   githubUrl: "",
+  /** 날씨 헤더의 조회 지점(서울 고정). 클라이언트 코드는 번들 의존을 피하려고 `@/config/weather`를 직접 가져온다. */
+  weather: weatherConfig,
 } as const;
 
 /**

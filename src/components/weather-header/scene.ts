@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { weatherConfig } from "@/config/weather";
 import {
   DEFAULT_SUN_HOURS,
   getKstParts,
@@ -63,7 +64,7 @@ function buildReport(
   if (input.forceWeather) {
     const [low, high] = WEATHER_THEMES[weather].lohi;
     const temp = getMockTemp(weather, hour ?? FALLBACK_HOUR);
-    return { temp, high, low, city: "서울", label };
+    return { temp, high, low, city: weatherConfig.city, label };
   }
   const { payload } = input;
   if (!payload) return null;

@@ -1,8 +1,6 @@
+import { weatherConfig } from "@/config/weather";
 import { toWeatherKey } from "./classify";
 import type { WeatherPayload } from "./types";
-
-/** Open-Meteo는 도시 이름을 주지 않으므로 조회 지점의 표시명을 고정한다. */
-export const WEATHER_CITY = "서울";
 
 /** Open-Meteo `/v1/forecast` 응답 중 사용하는 부분 (`timeformat=unixtime`, `forecast_days=1`) */
 export type OpenMeteoResponse = {
@@ -42,7 +40,7 @@ export function buildWeatherPayload(
     low: Math.round(
       requireNumber(daily?.temperature_2m_min?.[0], "temperature_2m_min"),
     ),
-    city: WEATHER_CITY,
+    city: weatherConfig.city,
     sunrise: requireNumber(daily.sunrise?.[0], "sunrise"),
     sunset: requireNumber(daily.sunset?.[0], "sunset"),
     fetchedAt: nowSec,

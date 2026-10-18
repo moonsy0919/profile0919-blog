@@ -1,3 +1,4 @@
+import { weatherConfig } from "@/config/weather";
 import type { TimeKey, WeatherKey, WeatherPayload } from "./types";
 
 const KST_OFFSET_SEC = 9 * 3600;
@@ -70,7 +71,7 @@ export function toTimeKey(hour: number): TimeKey {
 /** 주어진 Date를 Asia/Seoul 기준 월·일·요일·시·분으로 분해한다. */
 export function getKstParts(date: Date): KstParts {
   const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
+    timeZone: weatherConfig.timezone,
     hourCycle: "h23",
     hour: "2-digit",
     minute: "2-digit",

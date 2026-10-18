@@ -1,8 +1,9 @@
+import { siteConfig } from "@/config/site";
 import { buildWeatherPayload, type OpenMeteoResponse } from "./open-meteo";
 
 const API_URL = "https://api.open-meteo.com/v1/forecast";
-/** 조회 지점: 서울 (PRD의 siteConfig.weather로 옮길 때 이 상수를 교체한다) */
-const COORDS = { latitude: 37.5665, longitude: 126.978 };
+/** 조회 지점: siteConfig.weather(서울 고정) */
+const { latitude, longitude, timezone } = siteConfig.weather;
 /** 서버 캐시 시간(초) */
 const REVALIDATE_SEC = 1800;
 /** 외부 API 응답 대기 한도(ms) */
@@ -16,11 +17,11 @@ function errorResponse(message: string, status: number) {
 function buildUrl(): URL {
   const url = new URL(API_URL);
   url.search = new URLSearchParams({
-    latitude: String(COORDS.latitude),
-    longitude: String(COORDS.longitude),
+    latitude: String(latitude),
+    longitude: String(longitude),
     current: "temperature_2m,weather_code",
     daily: "temperature_2m_max,temperature_2m_min,sunrise,sunset",
-    timezone: "Asia/Seoul",
+    timezone,
     timeformat: "unixtime",
     forecast_days: "1",
   }).toString();
