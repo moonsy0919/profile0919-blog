@@ -36,8 +36,8 @@ src/
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
 │   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx 임시 자리 표시자)
 │   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 빈 라우트: posts/[slug], posts/new, dev-logs, dev-logs/[id], dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
-│   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기
-│   ├── api/weather/       # 공개 날씨 API (Route Handler)
+│   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
+│   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
 │   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
 │   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용, 압축형 헤더 포함)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
@@ -46,12 +46,14 @@ src/
 │   ├── icon.svg           # 파비콘
 │   └── globals.css        # TailwindCSS v4 진입점 + CSS 변수(라이트/다크 테마)
 ├── config/
-│   └── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL)와 SITEMAP_PATHS의 단일 출처
+│   ├── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL·weather)와 SITEMAP_PATHS의 단일 출처
+│   └── weather.ts         # weatherConfig — 날씨 조회 지점(서울 도시명·좌표·타임존). 정적 값만 두어 클라이언트 컴포넌트도 가져다 쓴다(siteConfig는 환경 변수에 의존하므로 클라이언트에서 직접 import하지 않는다)
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
 │   ├── header.tsx         # 서버 컴포넌트, variant(expanded/compact)에 따라 data-header-variant 표시
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
+│   ├── weather-header/    # 날씨·시간 헤더 UI와 데이터 계층(WeatherHeader, useWeather, Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함). 아직 어떤 페이지에도 붙지 않았고 Task 008에서 확장형 헤더에 통합
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/

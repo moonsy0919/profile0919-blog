@@ -9,7 +9,7 @@
 profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1인에게는 글·개발 일기·프로필 관리 기능을 제공한다.
 
 - **블로그**: 메인 한 화면(헤더 + 바디)에 태그 사이드바, 게시글 4개/페이지, 하단 개발 일기 카드 4개
-- **날씨·시간 헤더**: 서울(Asia/Seoul) 기준 현재 시각·날짜와 실제 날씨(11종)에 따라 하늘색·구름·안개·비·눈·번개·해 광채가 바뀌는 헤더(메인 페이지만). UI와 Open-Meteo 데이터 계층은 `docs/design/weather-header/`에 구현돼 있어 이식·통합·보강으로 진행한다(Task 004·008)
+- **날씨·시간 헤더**: 서울(Asia/Seoul) 기준 현재 시각·날짜와 실제 날씨(11종)에 따라 하늘색·구름·안개·비·눈·번개·해 광채가 바뀌는 헤더(메인 페이지만). UI와 Open-Meteo 데이터 계층은 `src/components/weather-header/`로 이식을 마쳐(Task 004) 헤더 통합·보강으로 진행한다(Task 008)
 - **관리자 전용 관리**: 미리 Supabase에 등록한 ID/PW 하나만 로그인 가능, 로그인 후 [작성][게시][수정][저장] 노출, 권한은 RLS가 최종 강제
 
 ## 현재 상태 (2026-10-18 갱신, 프로덕션 동작 항목은 2026-10-18 확인 기준)
@@ -19,14 +19,14 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
 - Supabase 클라이언트·`src/proxy.ts`·`posts` 테이블(원격 적용, 0행)만 있고 인증·태그·개발 일기·Storage는 없음
 - `proxy.ts` 보강(환경 변수 누락·Supabase 오류가 사이트 전체 500으로 번지지 않게)은 `b5b12c8`로 커밋 완료
 - PRD가 2026-10-12에 보완돼(헤더 날씨 연출 상세, 게시판 버튼별 CRUD 동작) 이 로드맵에 반영함
-- **날씨·시간 헤더 UI와 데이터 계층 구현됨(미이식, main 반영 완료, 2026-10-13)**: `docs/design/weather-header/`(날씨 11종 × 시간대 6종, Open-Meteo, `/api/weather`, 단위 테스트 포함). `src/app/api/weather/route.ts`·`src/app/(dev)/weather-header/page.tsx`가 이를 임시 re-export하고 `vitest.config.mts`에 `docs/design/**` include가 추가돼 있음. PRD 4.4 SkyHeader·2.1.1을 이 구현 기준으로 갱신했고 Task 004·005·006·008·017을 이에 맞게 조정함(임시 re-export 배선은 Task 004에서 해소)
+- **날씨·시간 헤더 UI와 데이터 계층 구현·이식 완료(2026-10-19)**: `src/components/weather-header/`(날씨 11종 × 시간대 6종, Open-Meteo, 단위 테스트 포함). `/api/weather`는 `src/app/api/weather/route.ts`의 실제 Route Handler이고, 개발 전용 `/weather-header` 미리보기는 `src/app/(dev)/weather-header/page.tsx`다. 조회 지점(서울 고정)은 `siteConfig.weather`(`src/config/weather.ts`)에 모았다. PRD 4.4 SkyHeader·2.1.1을 이 구현 기준으로 갱신했고 Task 005·006·008·017을 이에 맞게 조정함
 - `src/proxy.ts` 매처에서 `/api/weather`를 제외함(2026-10-13, 매처 단위 테스트는 Task 003에서 추가). `/api/weather`는 인증·속도 제한이 없는 공개 엔드포인트라는 한계를 PRD 2.1.1에 기록(필요 시 `Cache-Control: s-maxage`로 대응)
 - 날씨 구현은 `c49300c`·`7621729`·`c3b299e`로 **main에 반영돼 프로덕션에 `/api/weather`가 공개 중**(2026-10-14 확인, 서울 날씨 JSON 200). 날씨 UI는 어떤 실제 페이지에도 붙지 않았고, `/weather-header`는 Task 003에서 HTTP 404로 바로잡았다(2026-10-18 프로덕션에서 확인)
 - `npm run format:check`는 Task 003에서 복구해 로컬에서 통과한다(2026-10-18). 원격 CI도 초록이다(#28·#29). 이전 #27의 e2e 실패는 삭제한 옛 `/posts` 블로그 링크 테스트였다
-- **Task 003 완료(2026-10-18)**: 라우트 그룹 `(main)`·`(site)`·`(dev)`와 공용 `PageShell`, 더미 게이트 `assertDevOnly()`(`src/lib/dev-gate.ts`), 빈 라우트 7개, `/posts` 307 리디렉션. **다음 착수는 Task 004(날씨 모듈 이식)**
+- **Task 003 완료(2026-10-18)**: 라우트 그룹 `(main)`·`(site)`·`(dev)`와 공용 `PageShell`, 더미 게이트 `assertDevOnly()`(`src/lib/dev-gate.ts`), 빈 라우트 7개, `/posts` 307 리디렉션. - **Task 004 완료(2026-10-19)**: 날씨 모듈을 `src/components/weather-header/`로 이식하고 임시 re-export 배선·`vitest.config.mts`의 `docs/design/**` include·참조 시안을 정리했다. 메인(`/`)과 프로덕션 화면은 변하지 않았다. **다음 착수는 Task 005(타입·데이터 접근 계층·더미 데이터)**
 - **번호 체계 정비(2026-10-18)**: 구 Task 007(날씨)을 이식(Task 004)과 통합·보강·검증(Task 008)으로 나누고 번호를 실행 순서와 일치시켰다(예외 규칙 폐지). 구 번호와의 대응은 아래 "번호 변경 이력"에 있다
 - **개발 방식(2026-10-14 확정)**: 브랜치 없이 main에서 로드맵 순서대로 커밋·푸시한다. 프로덕션 보호는 아래 "배포 정책"의 더미 게이트로 한다
-- 이식 전 알려진 부족분(PRD 4.4 ⑧ "보강"): 글자 대비, reduced-motion 정적 대체, 일시정지, 모바일 입자 절반, 출처 표기 — Task 008-2에서 처리
+- 이식 후에도 남은 부족분(PRD 4.4 ⑧ "보강"): 글자 대비, reduced-motion 정적 대체, 일시정지, 모바일 입자 절반, 출처 표기 — Task 008-2에서 처리
 
 ## 개발 워크플로우
 
@@ -118,19 +118,19 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
   - 수락: 개발 환경에서 모든 라우트가 열리고, 프로덕션에서는 더미 경로가 404이며 `/`는 현재 임시 화면을 유지한다. `npm run check`와 `npm run format:check` 통과, CI(lint·format·typecheck·test·build·e2e) 초록
   - 참조: PRD 2.1, 2.1.1, 2.2
 
-- **Task 004: 날씨 모듈 이식** (F016) - 우선순위
-  - 날씨 UI와 데이터 계층(Open-Meteo, `/api/weather`, 날씨 11종 × 시간대 6종)은 `docs/design/weather-header/`에 **이미 구현**돼 있다. 이 Task는 새로 만드는 것이 아니라 **`src/`로 옮기고 임시 배선을 정리**하는 작업이며, 메인 페이지와 프로덕션 화면에는 **변화가 없다**. 날씨를 헤더에 끼워 넣는 작업은 Task 008에서 한다.
-  - 이 모듈은 프로젝트의 다른 코드를 import하지 않는 독립 모듈(`@/` import 0건, 외부는 react·next뿐)이라 다른 Task를 기다리지 않는다. 먼저 `src/`에 두면 이후 헤더 골격(Task 007)이 날씨 컴포넌트의 실제 크기·props를 보고 자리를 잡을 수 있다.
-  - [ ] `docs/design/weather-header/`를 `src/components/weather-header/`로 이동(테스트·CSS 모듈 포함)하고 `src/app/api/weather/route.ts`를 re-export에서 실제 Route Handler로 교체
-  - [ ] 개발 전용 미리보기 `src/app/(dev)/weather-header`는 유지한다. 게이트는 `(dev)/layout.tsx`의 `assertDevOnly()`가 이미 맡으므로 미리보기 페이지 안의 중복 `notFound()`를 제거하고, 페이지 자체의 `<main>`이 `PageShell`의 `<main>` 안에 중첩되므로 `<div>`로 바꾼다. `vitest.config.mts`의 `docs/design/**` include 제거
-  - [ ] 좌표·표시명을 `siteConfig.weather`(서울 고정)로 이동하고 `route.ts`·`open-meteo.ts`의 임시 상수 제거
-  - [ ] 디자인 시안 `docs/design/weather-header.reference.dc.html` 삭제(삭제 전 사용자 확인)와 함께 `.prettierignore`의 시안 항목 제거
-  - [ ] **CLAUDE.md 아키텍처 절 갱신**: `src/components/weather-header/`, `/api/weather`, `siteConfig.weather`, Open-Meteo 키 불필요
+- **Task 004: 날씨 모듈 이식** (F016) ✅ - 완료
+  - 날씨 UI와 데이터 계층(Open-Meteo, `/api/weather`, 날씨 11종 × 시간대 6종)은 이미 구현돼 있었고, 이 Task는 새로 만들지 않고 **`src/`로 옮기고 임시 배선을 정리**했다. 메인 페이지와 프로덕션 화면에는 **변화가 없다**. 날씨를 헤더에 끼워 넣는 작업은 Task 008에서 한다.
+  - 모듈은 다른 프로젝트 코드에 의존하지 않고 조회 지점 상수(`@/config/weather`)만 가져다 쓴다. 먼저 `src/`에 두어 이후 헤더 골격(Task 007)이 날씨 컴포넌트의 실제 크기·props를 보고 자리를 잡을 수 있다.
+  - ✅ `docs/design/weather-header/`를 `git mv`로 `src/components/weather-header/`에 이동(테스트·CSS 모듈 포함)하고 `src/app/api/weather/route.ts`를 re-export에서 실제 Route Handler로 교체
+  - ✅ 개발 전용 미리보기 `src/app/(dev)/weather-header`는 유지. 게이트는 `(dev)/layout.tsx`의 `assertDevOnly()`가 맡으므로 미리보기 페이지 안의 중복 `notFound()`를 제거하고, `PageShell`의 `<main>`과 중첩되던 `<main>`을 `<div>`로 바꿨다. `vitest.config.mts`의 `docs/design/**` include 제거
+  - ✅ 좌표·표시명·타임존을 `siteConfig.weather`(서울 고정)로 이동하고 `route.ts`·`open-meteo.ts`·`scene.ts`·`classify.ts`의 임시 상수 제거. 클라이언트 코드가 `siteConfig` 전체(환경 변수 의존)를 가져오지 않도록 정적 값은 `src/config/weather.ts`에 두고 `siteConfig.weather`가 이를 참조한다
+  - ✅ 디자인 시안 `docs/design/weather-header.reference.dc.html` 삭제(사용자 확인 후)와 `.prettierignore`의 시안 항목 제거
+  - ✅ **CLAUDE.md 아키텍처 절 갱신**: `src/components/weather-header/`, `/api/weather`, `siteConfig.weather`, Open-Meteo 키 불필요
   - 수락: `npm run check`와 `npm run format:check` 통과, `/weather-header`의 66개 조합이 이식 전과 같게 보이고 프로덕션에서는 HTTP 404이며, `/api/weather`가 프로덕션에서 이전과 같은 응답을 주고, `src/`가 `docs/design`을 import하지 않는다. 메인 페이지(`/`)는 변하지 않는다
   - 참조: PRD 2.1.1, 4.4 SkyHeader
 
-- **Task 005: 타입·데이터 접근 계층·더미 데이터**
-  - [ ] Post / Tag / DevLog / Profile / Viewer 타입 정의(PRD 2.3 ERD 필드 기준). 날씨 타입(`WeatherPayload`, `WeatherKey`)은 `docs/design/weather-header/types.ts`에 이미 있으므로 새로 만들지 않는다
+- **Task 005: 타입·데이터 접근 계층·더미 데이터** - 우선순위
+  - [ ] Post / Tag / DevLog / Profile / Viewer 타입 정의(PRD 2.3 ERD 필드 기준). 날씨 타입(`WeatherPayload`, `WeatherKey`)은 `src/components/weather-header/types.ts`에 이미 있으므로 새로 만들지 않는다
   - [ ] 읽기 함수 시그니처: `getPosts`, `getPost`(slug 단건), `getTags`, `getTagCounts`, `getDevLogs`, `getDevLog`(id 단건), `getProfile`, `getViewer` (날씨는 데이터 접근 계층이 아니라 `/api/weather` + `useWeather` 훅)
   - [ ] 쓰기 서버 액션 시그니처 8개(`createPost`·`updatePost`·`deletePost`, `createDevLog`·`updateDevLog`·`deleteDevLog`, `createTag`, `updateProfile`)와 통일 반환 형태(성공/실패), 더미 구현
   - [ ] 더미 데이터: 글 10개 이상, 태그 6개 이상, 개발 일기 5개 이상(GitHub 링크 있는 것·없는 것 포함)
@@ -142,7 +142,7 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
   - [ ] 목록 상태(`tag`/`page`) 파싱·보정(잘못된 값은 무시)과 상세 링크용 쿼리 생성·복원
   - [ ] Zod 스키마: slug(예약어 `new` 불가), 태그(1~20자, 글당 최대 10개), 표시 이름(1~30자), GitHub URL(`https://github.com/`)
   - [ ] 게시글·개발 일기 폼 스키마(제목 길이, 본문 필수 등): 클라이언트 폼과 서버 액션이 공용으로 사용
-  - 날씨 관련 순수 함수(WMO 코드 분류, 시간대 판정, 낮/밤·일출·일몰 변환, 하늘색, 효과 요소 생성)는 `docs/design/weather-header/`의 `classify.ts`·`theme.ts`·`scene.ts`·`effects.ts`에 구현·테스트돼 있어 이 Task에서 다시 만들지 않는다(Task 004에서 이식)
+  - 날씨 관련 순수 함수(WMO 코드 분류, 시간대 판정, 낮/밤·일출·일몰 변환, 하늘색, 효과 요소 생성)는 `src/components/weather-header/`의 `classify.ts`·`theme.ts`·`scene.ts`·`effects.ts`에 구현·테스트돼 있어 이 Task에서 다시 만들지 않는다(Task 004에서 이식)
   - 테스트: Vitest 단위 테스트(경계값 포함: 페이지 번호 보정, 잘못된 쿼리 값, 예약어 slug)
   - 참조: PRD 4.1, 4.4 게시글·개발 일기 서버 액션
 
