@@ -57,6 +57,7 @@ src/
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
+    ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
 e2e/                       # Playwright E2E 테스트

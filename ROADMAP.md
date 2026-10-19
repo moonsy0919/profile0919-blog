@@ -23,7 +23,7 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
 - `src/proxy.ts` 매처에서 `/api/weather`를 제외함(2026-10-13, 매처 단위 테스트는 Task 003에서 추가). `/api/weather`는 인증·속도 제한이 없는 공개 엔드포인트라는 한계를 PRD 2.1.1에 기록(필요 시 `Cache-Control: s-maxage`로 대응)
 - 날씨 구현은 `c49300c`·`7621729`·`c3b299e`로 **main에 반영돼 프로덕션에 `/api/weather`가 공개 중**(2026-10-14 확인, 서울 날씨 JSON 200). 날씨 UI는 어떤 실제 페이지에도 붙지 않았고, `/weather-header`는 Task 003에서 HTTP 404로 바로잡았다(2026-10-18 프로덕션에서 확인)
 - `npm run format:check`는 Task 003에서 복구해 로컬에서 통과한다(2026-10-18). 원격 CI도 초록이다(#28·#29). 이전 #27의 e2e 실패는 삭제한 옛 `/posts` 블로그 링크 테스트였다
-- **Task 003 완료(2026-10-18)**: 라우트 그룹 `(main)`·`(site)`·`(dev)`와 공용 `PageShell`, 더미 게이트 `assertDevOnly()`(`src/lib/dev-gate.ts`), 빈 라우트 7개, `/posts` 307 리디렉션. - **Task 004 완료(2026-10-19)**: 날씨 모듈을 `src/components/weather-header/`로 이식하고 임시 re-export 배선·`vitest.config.mts`의 `docs/design/**` include·참조 시안을 정리했다. 메인(`/`)과 프로덕션 화면은 변하지 않았다. **다음 착수는 Task 005(타입·데이터 접근 계층·더미 데이터)**
+- **Task 003 완료(2026-10-18)**: 라우트 그룹 `(main)`·`(site)`·`(dev)`와 공용 `PageShell`, 더미 게이트 `assertDevOnly()`(`src/lib/dev-gate.ts`), 빈 라우트 7개, `/posts` 307 리디렉션. - **Task 004 완료(2026-10-19)**: 날씨 모듈을 `src/components/weather-header/`로 이식하고 임시 re-export 배선·`vitest.config.mts`의 `docs/design/**` include·참조 시안을 정리했다. 메인(`/`)과 프로덕션 화면은 변하지 않았다. - **Task 005 완료(2026-10-19)**: `src/lib/data`에 도메인 타입·읽기 함수 8개·쓰기 서버 액션 8개(더미)·더미 데이터를 만들었다. 화면과 프로덕션은 변하지 않았다. **다음 착수는 Task 006(순수 유틸·검증 스키마)**
 - **번호 체계 정비(2026-10-18)**: 구 Task 007(날씨)을 이식(Task 004)과 통합·보강·검증(Task 008)으로 나누고 번호를 실행 순서와 일치시켰다(예외 규칙 폐지). 구 번호와의 대응은 아래 "번호 변경 이력"에 있다
 - **개발 방식(2026-10-14 확정)**: 브랜치 없이 main에서 로드맵 순서대로 커밋·푸시한다. 프로덕션 보호는 아래 "배포 정책"의 더미 게이트로 한다
 - 이식 후에도 남은 부족분(PRD 4.4 ⑧ "보강"): 글자 대비, reduced-motion 정적 대체, 일시정지, 모바일 입자 절반, 출처 표기 — Task 008-2에서 처리
@@ -129,15 +129,16 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
   - 수락: `npm run check`와 `npm run format:check` 통과, `/weather-header`의 66개 조합이 이식 전과 같게 보이고 프로덕션에서는 HTTP 404이며, `/api/weather`가 프로덕션에서 이전과 같은 응답을 주고, `src/`가 `docs/design`을 import하지 않는다. 메인 페이지(`/`)는 변하지 않는다
   - 참조: PRD 2.1.1, 4.4 SkyHeader
 
-- **Task 005: 타입·데이터 접근 계층·더미 데이터** - 우선순위
-  - [ ] Post / Tag / DevLog / Profile / Viewer 타입 정의(PRD 2.3 ERD 필드 기준). 날씨 타입(`WeatherPayload`, `WeatherKey`)은 `src/components/weather-header/types.ts`에 이미 있으므로 새로 만들지 않는다
-  - [ ] 읽기 함수 시그니처: `getPosts`, `getPost`(slug 단건), `getTags`, `getTagCounts`, `getDevLogs`, `getDevLog`(id 단건), `getProfile`, `getViewer` (날씨는 데이터 접근 계층이 아니라 `/api/weather` + `useWeather` 훅)
-  - [ ] 쓰기 서버 액션 시그니처 8개(`createPost`·`updatePost`·`deletePost`, `createDevLog`·`updateDevLog`·`deleteDevLog`, `createTag`, `updateProfile`)와 통일 반환 형태(성공/실패), 더미 구현
-  - [ ] 더미 데이터: 글 10개 이상, 태그 6개 이상, 개발 일기 5개 이상(GitHub 링크 있는 것·없는 것 포함)
+- **Task 005: 타입·데이터 접근 계층·더미 데이터** ✅ - 완료
+  - ✅ Post / Tag / DevLog / Profile / Viewer 타입 정의(PRD 2.3 ERD 필드 기준, `src/lib/data/types.ts`). 날씨 타입(`WeatherPayload`, `WeatherKey`)은 `src/components/weather-header/types.ts`에 이미 있으므로 새로 만들지 않는다
+  - ✅ 읽기 함수 시그니처: `getPosts`, `getPost`(slug 단건), `getTags`, `getTagCounts`, `getDevLogs`, `getDevLog`(id 단건), `getProfile`, `getViewer` (날씨는 데이터 접근 계층이 아니라 `/api/weather` + `useWeather` 훅). `getViewer` 더미는 방문자 고정이고 전환 지점은 `resolveDummyViewer()` 한 곳(Task 007에서 개발 전용 미리보기 연결)
+  - ✅ 쓰기 서버 액션 시그니처 8개(`createPost`·`updatePost`·`deletePost`, `createDevLog`·`updateDevLog`·`deleteDevLog`, `createTag`, `updateProfile`)와 통일 반환 형태 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`, 더미 구현(`src/lib/data/actions.ts`)
+  - ✅ 더미 데이터: 글 11개, 태그 6개, 개발 일기 5개(GitHub 링크 있는 것·없는 것 포함), 프로필 1개(`src/lib/data/dummy/`)
+  - ✅ 단일 진입점 `@/lib/data`(타입·읽기 함수), 액션은 `@/lib/data/actions`. 더미 함수에는 `assertDevOnly()`를 넣지 않고 라우트 게이트에 의존한다
   - 수락: 모든 페이지는 읽기를, 모든 쓰기 버튼은 쓰기를 이 계층의 시그니처로만 호출한다. 더미 데이터를 쓰는 경로는 프로덕션에서 닫힌다(더미 게이트)
   - 참조: PRD 2.3, 4.4 게시글·개발 일기 서버 액션
 
-- **Task 006: 순수 유틸·검증 스키마**
+- **Task 006: 순수 유틸·검증 스키마** - 우선순위
   - [ ] 본문 요약 발췌(마크다운 기호 제거), 페이지 번호 보정
   - [ ] 목록 상태(`tag`/`page`) 파싱·보정(잘못된 값은 무시)과 상세 링크용 쿼리 생성·복원
   - [ ] Zod 스키마: slug(예약어 `new` 불가), 태그(1~20자, 글당 최대 10개), 표시 이름(1~30자), GitHub URL(`https://github.com/`)
