@@ -1,3 +1,4 @@
+import { PAGE_SIZE, clampPage } from "@/lib/pagination";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
 import { dummyProfile } from "./dummy/profile";
@@ -14,8 +15,7 @@ import type {
   Viewer,
 } from "./types";
 
-/** 목록 한 페이지에 보여줄 개수 (게시글·개발 일기 공통) */
-export const PAGE_SIZE = 4;
+export { PAGE_SIZE };
 
 /**
  * 최신순(createdAt 내림차순, 동점이면 id 내림차순)으로 정렬한 사본을 돌려준다.
@@ -28,18 +28,6 @@ function sortLatest<T extends { id: string; createdAt: string }>(
     (a, b) =>
       b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
   );
-}
-
-/**
- * 요청한 page를 1 이상 마지막 페이지 이하로 보정한다.
- * 숫자가 아니거나 1 미만이면 1페이지로 본다.
- * @param page 요청한 페이지 번호
- * @param total 전체 항목 수
- */
-function clampPage(page: number | undefined, total: number): number {
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const requested = Number.isInteger(page) ? (page as number) : 1;
-  return Math.min(Math.max(requested, 1), lastPage);
 }
 
 /**
