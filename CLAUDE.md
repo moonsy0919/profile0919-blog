@@ -51,14 +51,15 @@ src/
 │   └── weather.ts         # weatherConfig — 날씨 조회 지점(서울 도시명·좌표·타임존). 정적 값만 두어 클라이언트 컴포넌트도 가져다 쓴다(siteConfig는 환경 변수에 의존하므로 클라이언트에서 직접 import하지 않는다)
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
-│   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만) 조회 후 HeaderView에 전달
-│   ├── header-view.tsx    # 표시 전용 헤더(동기, error.tsx 같은 클라이언트에서도 사용). 확장형만 중앙 프로필과 날씨 자리(data-header-slot, h-[136px])를 가짐
+│   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만) 조회 후 HeaderView에 전달. 확장형에만 WeatherScene·WeatherInfo·WeatherCredit(날씨 코드)를 넘겨 압축형·error.tsx 번들에 섞이지 않게 한다
+│   ├── header-view.tsx    # 표시 전용 헤더(동기, error.tsx 같은 클라이언트에서도 사용). 확장형은 header 1개 안에서 Sky(하늘) 위에 상단 바를 흰 글자(on-sky)로 얹고 아래 슬롯(data-header-slot, min-h-[136px])에 정보 영역을 둔다. 중앙 프로필은 확장형만
 │   ├── header-actions.tsx # 우측 버튼: 방문자 [로그인](프로덕션에서는 숨김) / 관리자 [작성][프로필][로그아웃]. 방문자 HTML에는 관리 버튼이 생성되지 않음
 │   ├── profile-badge.tsx  # 헤더 중앙 프로필(이미지+이름). 메인 확장형에서만 사용
+│   ├── on-sky.ts          # 하늘 위에 얹는 버튼·글자 스타일 상수(ON_SKY_BUTTON·ON_SKY_TEXT)
 │   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
-│   ├── weather-header/    # 날씨·시간 헤더 UI와 데이터 계층(WeatherHeader, useWeather, Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함). 아직 어떤 페이지에도 붙지 않았고 Task 008에서 확장형 헤더에 통합
+│   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
