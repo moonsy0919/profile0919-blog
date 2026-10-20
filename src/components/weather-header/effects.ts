@@ -139,9 +139,9 @@ function makeStars(rnd: () => number): Star[] {
   });
 }
 
-function makeDrops(rnd: () => number, spec: DropSpec): Drop[] {
+function makeDrops(rnd: () => number, spec: DropSpec, count: number): Drop[] {
   const dx = spec.slant * 250;
-  return Array.from({ length: spec.count }, () => {
+  return Array.from({ length: count }, () => {
     const len = round(spec.len[0] + rnd() * (spec.len[1] - spec.len[0]), 0);
     const dur = round(spec.dur[0] + rnd() * (spec.dur[1] - spec.dur[0]), 2);
     return {
@@ -169,11 +169,23 @@ function makeFlakes(rnd: () => number, count: number): Flake[] {
   });
 }
 
-const cache = new Map<WeatherKey | "none", Effects>();
+const cache = new Map<string, Effects>();
 
-/** 날씨별 효과 요소(별·구름·안개·빗방울·눈송이)를 만든다. 결과는 키별로 캐시된다. */
-export function buildEffects(weather: WeatherKey | null): Effects {
-  const cacheKey = weather ?? "none";
+/** 입자 개수에 배율을 적용한다. 입자가 있으면 최소 1개는 남긴다. */
+function scaleCount(count: number, scale: number): number {
+  return count === 0 ? 0 : Math.max(1, Math.round(count * scale));
+}
+
+/**
+ * 날씨별 효과 요소(별·구름·안개·빗방울·눈송이)를 만든다. 결과는 날씨·배율별로 캐시된다.
+ * @param weather 날씨 키(없으면 null)
+ * @param particleScale 빗방울·눈송이 개수 배율(기본 1, 모바일은 0.5). 별·구름·안개는 그대로다.
+ */
+export function buildEffects(
+  weather: WeatherKey | null,
+  particleScale = 1,
+): Effects {
+  const cacheKey = `${weather ?? "none"}|${particleScale}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
@@ -184,8 +196,10 @@ export function buildEffects(weather: WeatherKey | null): Effects {
   const effects: Effects = {
     stars,
     dropSpec,
-    drops: dropSpec ? makeDrops(rnd, dropSpec) : [],
-    flakes: makeFlakes(rnd, theme.flakes),
+    drops: dropSpec
+      ? makeDrops(rnd, dropSpec, scaleCount(dropSpec.count, particleScale))
+      : [],
+    flakes: makeFlakes(rnd, scaleCount(theme.flakes, particleScale)),
     clouds: CLOUD_LAYOUTS[theme.clouds].map(
       ([left, top, width, height, alpha]) => ({
         left,

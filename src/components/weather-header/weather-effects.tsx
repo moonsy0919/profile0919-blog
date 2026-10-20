@@ -199,6 +199,8 @@ type WeatherEffectsProps = {
   weather: WeatherKey | null;
   /** 움직임 줄이기: 번개·비·눈 입자를 렌더링하지 않고 정적 장면만 남긴다 */
   still?: boolean;
+  /** 빗방울·눈송이 개수 배율(모바일은 절반) */
+  particleScale?: number;
   starsOpacity: number;
   glowStyle: CSSProperties | null;
 };
@@ -207,11 +209,12 @@ type WeatherEffectsProps = {
 export function WeatherEffects({
   weather,
   still = false,
+  particleScale = 1,
   starsOpacity,
   glowStyle,
 }: WeatherEffectsProps) {
   const theme = getWeatherTheme(weather);
-  const fx = buildEffects(weather);
+  const fx = buildEffects(weather, particleScale);
   return (
     <>
       <Stars stars={fx.stars} opacity={starsOpacity} />

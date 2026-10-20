@@ -25,3 +25,8 @@ export function useMediaQuery(query: string): boolean {
 export function usePrefersReducedMotion(): boolean {
   return useMediaQuery("(prefers-reduced-motion: reduce)");
 }
+
+/** 모바일(폭 640px 이하)인지. 입자 개수를 줄이는 데 쓴다. */
+export function useIsMobile(): boolean {
+  return useMediaQuery("(max-width: 640px)");
+}
