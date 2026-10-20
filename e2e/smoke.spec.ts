@@ -104,6 +104,61 @@ test("프로필은 메인 헤더에만 있고 방문자 HTML에는 관리 버튼
   }
 });
 
+/** 날씨 API를 고정 응답으로 바꿔 네트워크 상태와 무관하게 확장형 헤더를 검증한다 */
+async function mockWeather(page: import("@playwright/test").Page) {
+  await page.route("**/api/weather", (route) =>
+    route.fulfill({
+      json: {
+        weather: "clear",
+        weatherCode: 0,
+        temp: 20,
+        high: 24,
+        low: 14,
+        city: "서울",
+        sunrise: 1_760_000_000,
+        sunset: 1_760_040_000,
+        fetchedAt: 1_760_000_000,
+      },
+    }),
+  );
+}
+
+test("메인 헤더에는 Open-Meteo 출처 링크가 있고 압축형에는 없다", async ({
+  page,
+}) => {
+  await mockWeather(page);
+  await page.goto("/");
+  const credit = page.getByRole("link", {
+    name: "Weather data by Open-Meteo.com",
+  });
+  await expect(credit).toBeVisible();
+  await expect(credit).toHaveAttribute("href", "https://open-meteo.com/");
+  await expect(credit).toHaveAttribute("rel", /noopener/);
+
+  await page.goto("/does-not-exist");
+  await expect(
+    page.getByRole("link", { name: "Weather data by Open-Meteo.com" }),
+  ).toHaveCount(0);
+});
+
+test("날씨 API는 메인에서만 호출되고 압축형 페이지에서는 호출되지 않는다", async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  await mockWeather(page);
+  page.on("request", (request) => {
+    if (request.url().includes("/api/weather")) calls.push(request.url());
+  });
+
+  await page.goto("/");
+  await expect.poll(() => calls.length).toBeGreaterThan(0);
+
+  calls.length = 0;
+  await page.goto("/does-not-exist");
+  await page.waitForLoadState("networkidle");
+  expect(calls).toHaveLength(0);
+});
+
 test("robots.txt와 sitemap.xml을 제공하고 닫힌 경로는 사이트맵에 없다", async ({
   request,
 }) => {

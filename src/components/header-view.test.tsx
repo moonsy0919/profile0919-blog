@@ -69,4 +69,29 @@ describe("HeaderView", () => {
     ).toBe(true);
     expect(screen.queryByText("로그인")).toBeNull();
   });
+
+  it("확장형은 Sky로 상단 바와 슬롯을 감싸고 header는 하나뿐이다", () => {
+    const Sky = ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="sky">{children}</div>
+    );
+    const { container } = renderHeader({
+      variant: "expanded",
+      profile,
+      Sky,
+      skySlot: <p data-testid="info">정보</p>,
+    });
+    const slot = container.querySelector("[data-header-slot]");
+    expect(container.querySelectorAll("header").length).toBe(1);
+    expect(screen.getByTestId("sky").contains(slot)).toBe(true);
+    expect(slot?.contains(screen.getByTestId("info"))).toBe(true);
+  });
+
+  it("압축형은 Sky와 슬롯 내용을 무시한다", () => {
+    const Sky = ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="sky">{children}</div>
+    );
+    renderHeader({ Sky, skySlot: <p data-testid="info">정보</p> });
+    expect(screen.queryByTestId("sky")).toBeNull();
+    expect(screen.queryByTestId("info")).toBeNull();
+  });
 });

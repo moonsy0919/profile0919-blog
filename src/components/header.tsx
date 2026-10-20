@@ -1,4 +1,5 @@
 import { HeaderView, type HeaderVariant } from "@/components/header-view";
+import { WeatherCredit } from "@/components/weather-header/weather-credit";
 import { WeatherInfo } from "@/components/weather-header/weather-info";
 import { WeatherScene } from "@/components/weather-header/weather-scene";
 import { getProfile, getViewer } from "@/lib/data";
@@ -42,7 +43,14 @@ export async function Header({
       profile={profile}
       devMode={isDevViewerEnabled()}
       Sky={expanded ? WeatherScene : undefined}
-      skySlot={expanded ? <WeatherInfo className="min-h-[136px] py-4" /> : null}
+      skySlot={
+        expanded ? (
+          <>
+            <WeatherInfo className="min-h-[136px] pt-4 pb-2" />
+            <WeatherCredit />
+          </>
+        ) : null
+      }
     />
   );
 }
