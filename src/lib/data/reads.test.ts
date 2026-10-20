@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   PAGE_SIZE,
   getDevLog,
@@ -10,6 +10,16 @@ import {
   getTags,
   getViewer,
 } from "@/lib/data";
+
+/** 모의 쿠키 저장소가 돌려줄 dev-viewer 값 */
+let mockCookieValue: string | undefined;
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: () =>
+      mockCookieValue === undefined ? undefined : { value: mockCookieValue },
+  }),
+}));
 
 describe("getPosts", () => {
   it("한 페이지에 4개씩 최신순으로 돌려준다", async () => {
@@ -106,7 +116,17 @@ describe("getProfile / getViewer", () => {
     expect(profile.displayName.length).toBeGreaterThan(0);
   });
 
-  it("뷰어는 방문자로 고정이다", async () => {
+  it("프로덕션에서는 쿠키를 읽지 않고 항상 방문자다", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    mockCookieValue = "admin";
     expect(await getViewer()).toEqual({ isAdmin: false });
+    vi.unstubAllEnvs();
+  });
+
+  it("개발에서는 dev-viewer 쿠키가 admin일 때만 관리자다", async () => {
+    mockCookieValue = undefined;
+    expect(await getViewer()).toEqual({ isAdmin: false });
+    mockCookieValue = "admin";
+    expect(await getViewer()).toEqual({ isAdmin: true });
   });
 });

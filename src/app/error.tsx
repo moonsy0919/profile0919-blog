@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { PageShell } from "@/components/page-shell";
+import { HeaderView } from "@/components/header-view";
 import { Button } from "@/components/ui/button";
 
 /**
  * 라우트 세그먼트에서 예기치 않은 오류가 발생했을 때 표시되는 페이지(압축형 헤더 포함).
  * retry()로 해당 세그먼트를 다시 불러와 복구를 시도한다.
+ * 클라이언트 컴포넌트라 async Header 대신 표시 전용 HeaderView를 쓰며, 뷰어를 알 수 없으므로 방문자 상태로 보여 준다.
  */
 export default function Error({
   error,
@@ -21,23 +22,32 @@ export default function Error({
   }, [error]);
 
   return (
-    <PageShell variant="compact">
-      <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-24 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">
-          문제가 발생했습니다
-        </h1>
-        <p className="text-muted-foreground">
-          잠시 후 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.
-        </p>
-        {error.digest && (
-          <p className="text-xs text-muted-foreground">
-            오류 코드: {error.digest}
+    <>
+      <HeaderView
+        variant="compact"
+        isAdmin={false}
+        profile={null}
+        devMode={false}
+      />
+      <main id="main-content" className="flex-1">
+        <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-24 text-center">
+          <h1 className="text-3xl font-bold tracking-tight">
+            문제가 발생했습니다
+          </h1>
+          <p className="text-muted-foreground">
+            잠시 후 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해
+            주세요.
           </p>
-        )}
-        <Button size="lg" onClick={() => retry()}>
-          다시 시도
-        </Button>
-      </div>
-    </PageShell>
+          {error.digest && (
+            <p className="text-xs text-muted-foreground">
+              오류 코드: {error.digest}
+            </p>
+          )}
+          <Button size="lg" onClick={() => retry()}>
+            다시 시도
+          </Button>
+        </div>
+      </main>
+    </>
   );
 }

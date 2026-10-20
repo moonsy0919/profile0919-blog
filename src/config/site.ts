@@ -1,4 +1,5 @@
 import pkg from "../../package.json";
+import { profileConfig } from "./profile";
 import { weatherConfig } from "./weather";
 
 /**
@@ -31,6 +32,8 @@ export const siteConfig = {
   githubUrl: "",
   /** 날씨 헤더의 조회 지점(서울 고정). 클라이언트 코드는 번들 의존을 피하려고 `@/config/weather`를 직접 가져온다. */
   weather: weatherConfig,
+  /** 헤더 중앙 프로필의 기본값(이름·이미지). DB 값이 없을 때의 폴백이며 정적 값은 `@/config/profile`에 있다. */
+  profile: profileConfig,
 } as const;
 
 /**

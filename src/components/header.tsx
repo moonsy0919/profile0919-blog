@@ -1,32 +1,43 @@
-import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { siteConfig } from "@/config/site";
+import { HeaderView, type HeaderVariant } from "@/components/header-view";
+import { getProfile, getViewer } from "@/lib/data";
+import { isDevViewerEnabled } from "@/lib/dev-viewer";
+import { resolveHeaderProfile, type HeaderProfile } from "@/lib/header-profile";
 
-/** 헤더 종류: 메인(/)은 확장형, 그 외 모든 화면은 압축형 */
-export type HeaderVariant = "expanded" | "compact";
+export type { HeaderVariant };
 
 /**
- * 사이트 공통 상단 헤더 (로고, 버전, 테마 토글). 메뉴 네비게이션은 두지 않는다(PRD 4.2).
- * 확장형(날씨·프로필 연출)은 Task 006·007에서 구현하며, 그 전까지는 압축형과 같은 모양이다.
+ * 헤더에 표시할 프로필을 조회한다. 프로필은 확장형에서만 쓰므로 압축형은 조회하지 않는다.
+ * 프로덕션은 더미 프로필을 노출하지 않도록 DB를 쓰기 전까지 siteConfig 기본값만 쓴다.
+ */
+async function loadHeaderProfile(
+  variant: HeaderVariant,
+): Promise<HeaderProfile | null> {
+  if (variant !== "expanded") return null;
+  const profile = isDevViewerEnabled() ? await getProfile() : null;
+  return resolveHeaderProfile(profile);
+}
+
+/**
+ * 사이트 공통 상단 헤더(서버 컴포넌트): 뷰어와 프로필을 조회해 HeaderView에 넘긴다.
+ * 날씨 하늘은 Task 008에서 확장형의 빈 자리에 끼운다.
  * @param variant 헤더 종류 (기본 compact)
  */
-export function Header({ variant = "compact" }: { variant?: HeaderVariant }) {
+export async function Header({
+  variant = "compact",
+}: {
+  variant?: HeaderVariant;
+}) {
+  const [viewer, profile] = await Promise.all([
+    getViewer(),
+    loadHeaderProfile(variant),
+  ]);
+
   return (
-    <header
-      data-header-variant={variant}
-      className="border-b border-border bg-background"
-    >
-      <div className="container mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-        <Link href="/" className="font-semibold text-foreground">
-          {siteConfig.name}
-        </Link>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-muted-foreground sm:inline">
-            {siteConfig.version}
-          </span>
-          <ThemeToggle />
-        </div>
-      </div>
-    </header>
+    <HeaderView
+      variant={variant}
+      isAdmin={viewer.isAdmin}
+      profile={profile}
+      devMode={isDevViewerEnabled()}
+    />
   );
 }

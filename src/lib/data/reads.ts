@@ -1,3 +1,9 @@
+import { cookies } from "next/headers";
+import {
+  DEV_VIEWER_ADMIN,
+  DEV_VIEWER_COOKIE,
+  isDevViewerEnabled,
+} from "@/lib/dev-viewer";
 import { PAGE_SIZE, clampPage } from "@/lib/pagination";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
@@ -123,11 +129,15 @@ export async function getProfile(): Promise<Profile> {
 }
 
 /**
- * 더미 뷰어 상태를 정하는 단일 지점. 프로덕션과 같은 방문자로 고정한다.
- * 개발 전용 관리자 미리보기 전환은 Task 007에서 여기에 연결한다.
+ * 더미 뷰어 상태를 정하는 단일 지점.
+ * 프로덕션은 쿠키를 읽지 않고 방문자로 고정하며(정적 렌더링 유지), 개발에서만 쿠키로 관리자 미리보기를 켠다.
  */
-function resolveDummyViewer(): Viewer {
-  return { isAdmin: false };
+async function resolveDummyViewer(): Promise<Viewer> {
+  if (!isDevViewerEnabled()) return { isAdmin: false };
+  const cookieStore = await cookies();
+  return {
+    isAdmin: cookieStore.get(DEV_VIEWER_COOKIE)?.value === DEV_VIEWER_ADMIN,
+  };
 }
 
 /** 현재 보는 사람(방문자/관리자)을 조회한다 */
