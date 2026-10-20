@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useRef, type CSSProperties } from "react";
 import { Noto_Sans_KR } from "next/font/google";
 import { WeatherSceneContext } from "./scene-context";
 import { SkyBackground } from "./sky-background";
@@ -8,6 +8,7 @@ import { buildScene } from "./scene";
 import { getSkyColors } from "./theme";
 import type { TimeKey, WeatherKey } from "./types";
 import { useNow } from "./use-now";
+import { usePaused } from "./use-paused";
 import { useWeather } from "./use-weather";
 import styles from "./weather-header.module.css";
 
@@ -38,7 +39,9 @@ export function WeatherScene({
   className = "",
   children,
 }: WeatherSceneProps) {
-  const nowMs = useNow();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const paused = usePaused(rootRef);
+  const nowMs = useNow(!paused);
   const { weather: payload, status } = useWeather(!forceWeather);
   const scene = buildScene({ nowMs, payload, forceWeather, forceTime });
   const [sky1, sky2, sky3] = getSkyColors(scene.timeKey, scene.weather);
@@ -54,6 +57,8 @@ export function WeatherScene({
   return (
     <WeatherSceneContext.Provider value={value}>
       <div
+        ref={rootRef}
+        data-paused={paused}
         data-weather={scene.weather ?? undefined}
         data-time={scene.timeKey}
         style={skyVars}
