@@ -17,3 +17,32 @@ export function clampPage(
   const requested = Number.isInteger(page) ? (page as number) : 1;
   return Math.min(Math.max(requested, 1), lastPage);
 }
+
+/** 페이지 번호 목록의 한 항목: 페이지 번호 또는 생략 표시 */
+export type PageWindowItem = number | "ellipsis";
+
+/**
+ * 페이지 번호 목록을 만든다. 첫·마지막 페이지와 현재 페이지 앞뒤 siblings개만 보여주고,
+ * 그 사이가 비어 있으면 "ellipsis"를 넣는다.
+ * @param current 현재 페이지 번호 (1 ~ total로 보정)
+ * @param total 전체 페이지 수
+ * @param siblings 현재 페이지 앞뒤로 보여줄 개수 (기본값 1)
+ */
+export function getPageWindow(
+  current: number,
+  total: number,
+  siblings: number = 1,
+): PageWindowItem[] {
+  if (total <= 1) return [1];
+  const page = Math.min(Math.max(current, 1), total);
+  const pages = new Set([1, total]);
+  for (let i = page - siblings; i <= page + siblings; i += 1) {
+    if (i >= 1 && i <= total) pages.add(i);
+  }
+  const sorted = [...pages].sort((a, b) => a - b);
+  return sorted.flatMap((value, index) =>
+    index > 0 && value - sorted[index - 1] > 1
+      ? (["ellipsis", value] as PageWindowItem[])
+      : [value],
+  );
+}
