@@ -133,7 +133,13 @@ type WeatherIconProps = { name: IconName; size?: number };
 /** 날씨 아이콘 (장식용이므로 스크린리더에서는 숨긴다) */
 export function WeatherIcon({ name, size = 68 }: WeatherIconProps) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+    <svg
+      data-icon={name}
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      aria-hidden="true"
+    >
       {ICONS[name]}
     </svg>
   );
