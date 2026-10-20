@@ -4,6 +4,7 @@ import { scrimBottomAlpha, scrimGradient } from "./contrast";
 import { getGlowStyle } from "./scene";
 import { getSkyColors, getStarsOpacity } from "./theme";
 import { useWeatherScene } from "./scene-context";
+import { usePrefersReducedMotion } from "./use-media-query";
 import { WeatherEffects } from "./weather-effects";
 
 /**
@@ -12,11 +13,13 @@ import { WeatherEffects } from "./weather-effects";
  */
 export function SkyBackground() {
   const { scene } = useWeatherScene();
+  const reducedMotion = usePrefersReducedMotion();
   const alpha = scrimBottomAlpha(getSkyColors(scene.timeKey, scene.weather));
   return (
     <>
       <WeatherEffects
         weather={scene.weather}
+        still={reducedMotion}
         starsOpacity={getStarsOpacity(scene.timeKey, scene.weather)}
         glowStyle={getGlowStyle(scene)}
       />

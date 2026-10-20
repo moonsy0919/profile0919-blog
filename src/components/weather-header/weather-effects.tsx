@@ -197,13 +197,16 @@ function Flakes({ flakes }: { flakes: Flake[] }) {
 
 type WeatherEffectsProps = {
   weather: WeatherKey | null;
+  /** 움직임 줄이기: 번개·비·눈 입자를 렌더링하지 않고 정적 장면만 남긴다 */
+  still?: boolean;
   starsOpacity: number;
   glowStyle: CSSProperties | null;
 };
 
-/** 날씨에 따른 배경 효과(별·광채·구름·안개·번개·비·눈) 묶음 */
+/** 날씨에 따른 배경 효과(별·광채·구름·안개·번개·비·눈) 묶음. still이면 움직이는 입자는 생략한다. */
 export function WeatherEffects({
   weather,
+  still = false,
   starsOpacity,
   glowStyle,
 }: WeatherEffectsProps) {
@@ -215,9 +218,9 @@ export function WeatherEffects({
       {glowStyle && <Glow style={glowStyle} opacity={theme.glow} />}
       <Clouds clouds={fx.clouds} dim={!!theme.dim} />
       <Fog bands={fx.fog} />
-      {theme.flash && <Lightning />}
-      {fx.dropSpec && <Drops drops={fx.drops} spec={fx.dropSpec} />}
-      <Flakes flakes={fx.flakes} />
+      {!still && theme.flash && <Lightning />}
+      {!still && fx.dropSpec && <Drops drops={fx.drops} spec={fx.dropSpec} />}
+      {!still && <Flakes flakes={fx.flakes} />}
     </>
   );
 }
