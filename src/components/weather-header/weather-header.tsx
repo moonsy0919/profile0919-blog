@@ -22,7 +22,7 @@ export function WeatherHeader({ forceWeather, forceTime }: WeatherHeaderProps) {
       forceTime={forceTime}
       className="min-h-[200px]"
     >
-      <WeatherInfo className="min-h-[200px]" />
+      <WeatherInfo className="min-h-[200px] py-7" />
     </WeatherScene>
   );
 }

@@ -75,7 +75,7 @@ function ReportBlock({ report, icon }: ReportBlockProps) {
 /**
  * 시계·날씨 정보 영역: 왼쪽 시간대 칩·날짜·시계·인사말, 오른쪽 날씨 요약.
  * WeatherScene 안에서 같은 장면 값을 읽는다. 날씨를 기다리는 동안은 스켈레톤으로 같은 크기의 자리를 잡는다.
- * @param className 높이 등 바깥에서 정하는 클래스
+ * @param className 높이·세로 패딩 등 바깥에서 정하는 클래스
  */
 export function WeatherInfo({ className = "" }: { className?: string }) {
   const { scene, loading } = useWeatherScene();
@@ -83,7 +83,7 @@ export function WeatherInfo({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`relative mx-auto box-border flex max-w-[1200px] flex-wrap items-center justify-between gap-x-10 gap-y-5 px-[clamp(20px,4vw,48px)] py-7 ${className}`}
+      className={`relative mx-auto box-border flex max-w-[1200px] flex-wrap items-center justify-between gap-x-10 gap-y-5 px-[clamp(20px,4vw,48px)] ${className}`}
     >
       <TimeBlock
         timeLabel={TIME_THEMES[scene.timeKey].ko}

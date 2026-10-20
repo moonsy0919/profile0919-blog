@@ -1,4 +1,6 @@
 import { HeaderView, type HeaderVariant } from "@/components/header-view";
+import { WeatherInfo } from "@/components/weather-header/weather-info";
+import { WeatherScene } from "@/components/weather-header/weather-scene";
 import { getProfile, getViewer } from "@/lib/data";
 import { isDevViewerEnabled } from "@/lib/dev-viewer";
 import { resolveHeaderProfile, type HeaderProfile } from "@/lib/header-profile";
@@ -19,7 +21,7 @@ async function loadHeaderProfile(
 
 /**
  * 사이트 공통 상단 헤더(서버 컴포넌트): 뷰어와 프로필을 조회해 HeaderView에 넘긴다.
- * 날씨 하늘은 Task 008에서 확장형의 빈 자리에 끼운다.
+ * 날씨 하늘(WeatherScene)은 확장형에서만 넘기므로 압축형과 오류 화면은 날씨 코드를 가져오지 않는다.
  * @param variant 헤더 종류 (기본 compact)
  */
 export async function Header({
@@ -31,6 +33,7 @@ export async function Header({
     getViewer(),
     loadHeaderProfile(variant),
   ]);
+  const expanded = variant === "expanded";
 
   return (
     <HeaderView
@@ -38,6 +41,8 @@ export async function Header({
       isAdmin={viewer.isAdmin}
       profile={profile}
       devMode={isDevViewerEnabled()}
+      Sky={expanded ? WeatherScene : undefined}
+      skySlot={expanded ? <WeatherInfo className="min-h-[136px] py-4" /> : null}
     />
   );
 }
