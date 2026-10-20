@@ -59,6 +59,11 @@ src/
 │   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
+│   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용. 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 아직 페이지에 연결되지 않음(Task 010에서 배치)
+│   ├── dev-log-card.tsx   # 개발 일기 카드 — 제목 링크를 카드 전체로 확장(stretched link), GitHub 링크는 별도 앵커(z-10)로 중첩 방지, 태그 칩 3개 + "+n". 상세 링크는 page만 전달
+│   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
+│   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음
+│   ├── thumbnail-image.tsx # "use client" — 카드 썸네일(16:9). 없거나 불러오기 실패 시 public/default-thumbnail.svg로 대체. 두 카드가 공유
 │   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
@@ -67,7 +72,8 @@ src/
     ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트
-    ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export
+    ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
+    ├── format-date.ts     # formatPostDate() — ISO 날짜를 서울 기준 ko-KR(예: 2026. 10. 20.)로 변환. 카드 2종이 공유
     ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref
     ├── text/excerpt.ts    # extractExcerpt() — 마크다운 기호를 지운 카드용 본문 요약 발췌
     ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
