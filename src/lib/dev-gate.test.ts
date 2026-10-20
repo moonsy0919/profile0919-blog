@@ -1,11 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assertDevOnly } from "./dev-gate";
+import { assertDevOnly, isDevOnlyOpen } from "./dev-gate";
 
 const notFoundMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
 }));
+
+describe("isDevOnlyOpen", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("프로덕션에서만 false다", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(isDevOnlyOpen()).toBe(false);
+    vi.stubEnv("NODE_ENV", "development");
+    expect(isDevOnlyOpen()).toBe(true);
+    vi.stubEnv("NODE_ENV", "test");
+    expect(isDevOnlyOpen()).toBe(true);
+  });
+});
 
 describe("assertDevOnly", () => {
   afterEach(() => {

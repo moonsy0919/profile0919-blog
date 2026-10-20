@@ -34,7 +34,7 @@ npm run check       # lint + typecheck + test + build
 src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
-│   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx 임시 자리 표시자)
+│   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 개발 환경에서는 게시글·개발 일기 영역을 각각 Suspense·SectionErrorBoundary로 감싸 렌더링하고, 프로덕션(isDevOnlyOpen false)에서는 MainPlaceholder를 HTTP 200으로 보여 준다(Task 018·019에서 게이트 해제)
 │   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 빈 라우트: posts/[slug], posts/new, dev-logs, dev-logs/[id], dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
@@ -59,10 +59,14 @@ src/
 │   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
-│   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용. 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 아직 페이지에 연결되지 않음(Task 010에서 배치)
+│   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용. 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 메인의 PostListSection이 배치한다(Task 010)
 │   ├── dev-log-card.tsx   # 개발 일기 카드 — 제목 링크를 카드 전체로 확장(stretched link), GitHub 링크는 별도 앵커(z-10)로 중첩 방지, 태그 칩 3개 + "+n". 상세 링크는 page만 전달
 │   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
 │   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음
+│   ├── post-list-section.tsx # async 서버 컴포넌트 — 메인 게시글 영역(TagSidebar + PostCard 목록 + Pagination). 보정된 page를 카드·페이지 번호에 사용. 모바일 1열은 grid-cols-[minmax(0,1fr)] 필수(없으면 태그 칩이 페이지를 가로로 넘치게 함). post-list-empty.tsx는 빈 상태(태그 유무로 문구 분기, [전체 보기])
+│   ├── dev-log-section.tsx # async 서버 컴포넌트 — 메인 개발 일기 영역(최신 4개 그리드, [개발 일기 더 보기], 관리자만 [게시]를 서버에서 렌더링)
+│   ├── main-placeholder.tsx # 프로덕션 `/`의 임시 화면(게이트가 닫힌 동안). main-skeletons.tsx는 두 영역의 로딩 자리
+│   ├── section-error-boundary.tsx # "use client" — 한 영역의 오류를 그 영역 안에서만 처리하고 [다시 시도] 제공
 │   ├── thumbnail-image.tsx # "use client" — 카드 썸네일(16:9). 없거나 불러오기 실패 시 public/default-thumbnail.svg로 대체. 두 카드가 공유
 │   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
@@ -71,7 +75,7 @@ src/
     ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
     ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
-    ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트
+    ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
     ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
     ├── format-date.ts     # formatPostDate() — ISO 날짜를 서울 기준 ko-KR(예: 2026. 10. 20.)로 변환. 카드 2종이 공유
     ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref

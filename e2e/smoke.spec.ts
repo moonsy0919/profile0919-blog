@@ -75,7 +75,8 @@ test("헤더는 main 밖에 있고 메뉴 네비게이션과 푸터가 없다", 
   await page.goto("/");
   await expect(page.getByRole("banner")).toHaveCount(1);
   await expect(page.locator("main header")).toHaveCount(0);
-  await expect(page.getByRole("navigation")).toHaveCount(0);
+  // 본문의 태그·페이지 이동 nav는 허용하고, 헤더에 메뉴 네비게이션이 없는지만 본다
+  await expect(page.getByRole("banner").getByRole("navigation")).toHaveCount(0);
   await expect(page.getByRole("contentinfo")).toHaveCount(0);
 });
 
