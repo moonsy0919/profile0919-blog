@@ -47,10 +47,15 @@ src/
 │   └── globals.css        # TailwindCSS v4 진입점 + CSS 변수(라이트/다크 테마)
 ├── config/
 │   ├── site.ts            # siteConfig(이름·설명·URL·버전·GitHub URL·weather)와 SITEMAP_PATHS의 단일 출처
+│   ├── profile.ts         # profileConfig — 헤더 프로필 기본값(이름·public/default-avatar.svg). siteConfig.profile이 참조
 │   └── weather.ts         # weatherConfig — 날씨 조회 지점(서울 도시명·좌표·타임존). 정적 값만 두어 클라이언트 컴포넌트도 가져다 쓴다(siteConfig는 환경 변수에 의존하므로 클라이언트에서 직접 import하지 않는다)
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
-│   ├── header.tsx         # 서버 컴포넌트, variant(expanded/compact)에 따라 data-header-variant 표시
+│   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만) 조회 후 HeaderView에 전달
+│   ├── header-view.tsx    # 표시 전용 헤더(동기, error.tsx 같은 클라이언트에서도 사용). 확장형만 중앙 프로필과 날씨 자리(data-header-slot, h-[136px])를 가짐
+│   ├── header-actions.tsx # 우측 버튼: 방문자 [로그인](프로덕션에서는 숨김) / 관리자 [작성][프로필][로그아웃]. 방문자 HTML에는 관리 버튼이 생성되지 않음
+│   ├── profile-badge.tsx  # 헤더 중앙 프로필(이미지+이름). 메인 확장형에서만 사용
+│   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
 │   ├── weather-header/    # 날씨·시간 헤더 UI와 데이터 계층(WeatherHeader, useWeather, Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함). 아직 어떤 페이지에도 붙지 않았고 Task 008에서 확장형 헤더에 통합
@@ -58,6 +63,8 @@ src/
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
     ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
+    ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
+    ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트
     ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export
     ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref
