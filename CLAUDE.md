@@ -35,7 +35,7 @@ src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
 │   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 개발 환경에서는 게시글·개발 일기 영역을 각각 Suspense·SectionErrorBoundary로 감싸 렌더링하고, 프로덕션(isDevOnlyOpen false)에서는 MainPlaceholder를 HTTP 200으로 보여 준다(Task 018·019에서 게이트 해제)
-│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 빈 라우트: posts/[slug], posts/new, dev-logs, dev-logs/[id], dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
+│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 모드 자리(Task 011), 빈 라우트: posts/new, dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
 │   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
@@ -59,10 +59,17 @@ src/
 │   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── placeholder-page.tsx # 구현 전 라우트의 빈 화면
+│   ├── markdown-content.tsx # 마크다운 본문 렌더(react-markdown + remark-gfm, 원시 HTML 비허용). 본문 `#`은 h2로 낮추고 node prop은 DOM에 펼치지 않는다
+│   ├── post-detail.tsx    # 게시글 상세 읽기 뷰(표시 전용) — [목록으로]·썸네일·제목·날짜·태그 칩·본문. isAdmin일 때만 AdminActions를 그린다
+│   ├── dev-log-detail.tsx # 개발 일기 상세 읽기 뷰 — 썸네일은 있을 때만, 표시 전용 태그, GitHub 새 탭 링크
+│   ├── dev-log-list-section.tsx # async 서버 컴포넌트 — `/dev-logs` 본문(4개/페이지 그리드 + Pagination basePath="/dev-logs", 관리자만 [게시])
+│   ├── admin-actions.tsx  # "use client" — 상세 맨 아래 [수정] 링크 + DeleteButton. 삭제 진행 중에는 [수정]도 비활성
+│   ├── delete-button.tsx  # "use client" — [삭제] 확인 다이얼로그(ui/dialog 기반, PRD 4.1 문구). 더미 deletePost/deleteDevLog 호출 후 토스트·이동
+│   ├── edit-mode-placeholder.tsx # `?edit=1` 수정 모드 자리(Task 013에서 폼으로 교체). [취소]는 edit만 제거한 읽기 모드 링크
 │   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용. 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 메인의 PostListSection이 배치한다(Task 010)
 │   ├── dev-log-card.tsx   # 개발 일기 카드 — 제목 링크를 카드 전체로 확장(stretched link), GitHub 링크는 별도 앵커(z-10)로 중첩 방지, 태그 칩 3개 + "+n". 상세 링크는 page만 전달
 │   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
-│   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음
+│   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음. `basePath` prop(기본 `/`)으로 `/dev-logs`에서도 사용
 │   ├── post-list-section.tsx # async 서버 컴포넌트 — 메인 게시글 영역(TagSidebar + PostCard 목록 + Pagination). 보정된 page를 카드·페이지 번호에 사용. 모바일 1열은 grid-cols-[minmax(0,1fr)] 필수(없으면 태그 칩이 페이지를 가로로 넘치게 함). post-list-empty.tsx는 빈 상태(태그 유무로 문구 분기, [전체 보기])
 │   ├── dev-log-section.tsx # async 서버 컴포넌트 — 메인 개발 일기 영역(최신 4개 그리드, [개발 일기 더 보기], 관리자만 [게시]를 서버에서 렌더링)
 │   ├── main-placeholder.tsx # 프로덕션 `/`의 임시 화면(게이트가 닫힌 동안). main-skeletons.tsx는 두 영역의 로딩 자리
@@ -78,7 +85,8 @@ src/
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
     ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
     ├── format-date.ts     # formatPostDate() — ISO 날짜를 서울 기준 ko-KR(예: 2026. 10. 20.)로 변환. 카드 2종이 공유
-    ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref
+    ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref, 상세 [수정] 링크 buildEditHref
+    ├── edit-mode.ts       # isEditRequested·isEditMode(관리자 + edit=1일 때만 수정 모드, 비관리자는 읽기 모드)·buildDetailMetadata(edit=1이면 noindex)
     ├── text/excerpt.ts    # extractExcerpt() — 마크다운 기호를 지운 카드용 본문 요약 발췌
     ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
