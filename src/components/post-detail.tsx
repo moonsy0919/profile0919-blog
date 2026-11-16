@@ -63,7 +63,7 @@ function PostTags({ tags }: { tags: Post["tags"] }) {
 }
 
 /**
- * 게시글 상세(읽기 모드). 단일 컬럼으로 썸네일·제목·날짜·태그·마크다운 본문을 보여 준다.
+ * 게시글 상세(읽기 모드). 헤더 사이트 이름과 왼쪽 끝을 맞춘 영역 안에서 단일 컬럼(max-w-3xl)으로 썸네일·제목·날짜·태그·마크다운 본문을 보여 준다.
  * 관리자 버튼은 서버에서 판정한 isAdmin이 true일 때만 DOM에 생긴다.
  */
 export function PostDetail({
@@ -73,22 +73,26 @@ export function PostDetail({
   editHref,
 }: PostDetailProps) {
   return (
-    <article className="container mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <Link
-        href={backHref as Route}
-        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        목록으로
-      </Link>
-      <ThumbnailImage src={post.thumbnailUrl} className="rounded-lg" />
-      <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-bold">{post.title}</h1>
-        <PostDates post={post} />
-        <PostTags tags={post.tags} />
-      </header>
-      <MarkdownContent content={post.content} />
-      {isAdmin && <AdminActions kind="post" id={post.id} editHref={editHref} />}
+    <article className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="flex max-w-3xl flex-col gap-6">
+        <Link
+          href={backHref as Route}
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          목록으로
+        </Link>
+        <ThumbnailImage src={post.thumbnailUrl} className="rounded-lg" />
+        <header className="flex flex-col gap-3">
+          <h1 className="text-3xl font-bold">{post.title}</h1>
+          <PostDates post={post} />
+          <PostTags tags={post.tags} />
+        </header>
+        <MarkdownContent content={post.content} />
+        {isAdmin && (
+          <AdminActions kind="post" id={post.id} editHref={editHref} />
+        )}
+      </div>
     </article>
   );
 }

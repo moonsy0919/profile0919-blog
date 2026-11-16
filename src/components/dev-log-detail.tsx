@@ -66,32 +66,34 @@ export function DevLogDetail({
   editHref,
 }: DevLogDetailProps) {
   return (
-    <article className="container mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <Link
-        href={backHref as Route}
-        className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        목록으로
-      </Link>
-      {devLog.thumbnailUrl && (
-        <ThumbnailImage src={devLog.thumbnailUrl} className="rounded-lg" />
-      )}
-      <header className="flex flex-col gap-3">
-        <h1 className="text-3xl font-bold">{devLog.title}</h1>
-        <time
-          dateTime={devLog.createdAt}
-          className="text-sm text-muted-foreground"
+    <article className="container mx-auto max-w-5xl px-4 py-8">
+      <div className="flex max-w-3xl flex-col gap-6">
+        <Link
+          href={backHref as Route}
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          {formatPostDate(devLog.createdAt)}
-        </time>
-        <DevLogTags tags={devLog.tags} />
-        <GithubLink githubUrl={devLog.githubUrl} />
-      </header>
-      <MarkdownContent content={devLog.content} />
-      {isAdmin && (
-        <AdminActions kind="devLog" id={devLog.id} editHref={editHref} />
-      )}
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          목록으로
+        </Link>
+        {devLog.thumbnailUrl && (
+          <ThumbnailImage src={devLog.thumbnailUrl} className="rounded-lg" />
+        )}
+        <header className="flex flex-col gap-3">
+          <h1 className="text-3xl font-bold">{devLog.title}</h1>
+          <time
+            dateTime={devLog.createdAt}
+            className="text-sm text-muted-foreground"
+          >
+            {formatPostDate(devLog.createdAt)}
+          </time>
+          <DevLogTags tags={devLog.tags} />
+          <GithubLink githubUrl={devLog.githubUrl} />
+        </header>
+        <MarkdownContent content={devLog.content} />
+        {isAdmin && (
+          <AdminActions kind="devLog" id={devLog.id} editHref={editHref} />
+        )}
+      </div>
     </article>
   );
 }

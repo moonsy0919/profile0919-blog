@@ -22,7 +22,7 @@ function getSiteUrl(): string {
  * 사이트 전역 설정. 이름, 설명, 버전, 네비게이션 등 여러 곳에서 쓰는 값의 단일 출처.
  */
 export const siteConfig = {
-  name: "profile0919",
+  name: "Profile0919",
   description: "profile0919의 개인 블로그",
   /** 배포 주소. 메타데이터, sitemap, robots에서 사용하며 NEXT_PUBLIC_SITE_URL로 직접 지정할 수 있다. */
   url: getSiteUrl(),

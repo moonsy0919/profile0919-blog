@@ -25,24 +25,26 @@ export function EditModePlaceholder({
   return (
     <section
       aria-labelledby="edit-mode-heading"
-      className="container mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8"
+      className="container mx-auto max-w-5xl px-4 py-8"
     >
-      <h1 id="edit-mode-heading" className="text-2xl font-semibold">
-        {KIND_LABEL[kind]} 수정
-      </h1>
-      <p className="text-muted-foreground">
-        수정 중: {title}
-        <br />
-        수정 폼은 준비 중입니다.
-      </p>
-      <div className="flex justify-end">
-        {/* typedRoutes는 문자열 변수 href에 Route 캐스팅을 요구한다 */}
-        <Link
-          href={cancelHref as Route}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          취소
-        </Link>
+      <div className="flex max-w-3xl flex-col gap-6">
+        <h1 id="edit-mode-heading" className="text-2xl font-semibold">
+          {KIND_LABEL[kind]} 수정
+        </h1>
+        <p className="text-muted-foreground">
+          수정 중: {title}
+          <br />
+          수정 폼은 준비 중입니다.
+        </p>
+        <div className="flex justify-end">
+          {/* typedRoutes는 문자열 변수 href에 Route 캐스팅을 요구한다 */}
+          <Link
+            href={cancelHref as Route}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            취소
+          </Link>
+        </div>
       </div>
     </section>
   );

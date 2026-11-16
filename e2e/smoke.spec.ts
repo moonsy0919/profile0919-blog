@@ -14,7 +14,7 @@ const gatedPaths = [
 
 test("홈페이지가 렌더링된다", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/profile0919/);
+  await expect(page).toHaveTitle(/Profile0919/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 

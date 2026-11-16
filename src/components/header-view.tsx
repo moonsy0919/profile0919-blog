@@ -60,7 +60,8 @@ function HeaderTopBar({ isAdmin, profile, devMode, onSky }: TopBarProps) {
         <Link
           href="/"
           className={cn(
-            "font-semibold",
+            // 블로그 홈 로고처럼 보이도록 본문보다 크고 굵게 둔다
+            "text-xl font-bold tracking-tight sm:text-2xl",
             onSky ? ON_SKY_TEXT : "text-foreground",
           )}
         >
