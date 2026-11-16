@@ -8,7 +8,7 @@ import {
 } from "./classify";
 import { buildWeatherPayload, type OpenMeteoResponse } from "./open-meteo";
 import { buildEffects } from "./effects";
-import { getGreeting, getSkyColors } from "./theme";
+import { getSkyColors } from "./theme";
 import type { WeatherKey } from "./types";
 
 describe("toWeatherKey", () => {
@@ -140,15 +140,6 @@ describe("Open-Meteo 응답 정규화", () => {
 });
 
 describe("테마", () => {
-  it("clear는 어두운 시간대에 다른 안내 문구를 쓴다", () => {
-    expect(getGreeting("noon", "clear")).toContain("햇살이 좋은 날이에요");
-    expect(getGreeting("night", "clear")).toContain("하늘이 맑아요");
-  });
-
-  it("날씨를 모르면 인사말만 보여 준다", () => {
-    expect(getGreeting("morning", null)).toBe("좋은 아침이에요");
-  });
-
   it("clear는 하늘 톤을 바꾸지 않는다", () => {
     expect(getSkyColors("noon", "clear")[0]).toBe("rgb(28, 111, 209)");
   });

@@ -2,11 +2,10 @@ import type { DropKind, IconName, TimeKey, WeatherKey } from "./types";
 
 type Rgb = number[];
 
-/** 시간대별 하늘 3색(위·중간·아래), 한글 이름, 인사말, 미리보기용 대표 시각 */
+/** 시간대별 하늘 3색(위·중간·아래), 한글 이름, 미리보기용 대표 시각 */
 export type TimeTheme = {
   ko: string;
   sky: readonly [string, string, string];
-  hello: string;
   representativeHour: number;
 };
 
@@ -27,9 +26,6 @@ export type WeatherTheme = {
   stars: number;
   drops: DropKind | null;
   flakes: number;
-  tip: string;
-  /** 새벽·밤에 대신 쓰는 안내 문구 */
-  darkTip?: string;
   /** 시연용 [최저, 최고] 기온 */
   lohi: readonly [number, number];
 };
@@ -38,37 +34,31 @@ export const TIME_THEMES: Record<TimeKey, TimeTheme> = {
   dawn: {
     ko: "새벽",
     sky: ["#151C44", "#3E4483", "#C98B8A"],
-    hello: "고요한 새벽이에요",
     representativeHour: 6.75,
   },
   morning: {
     ko: "아침",
     sky: ["#2A6FBF", "#4F90D6", "#D9B48F"],
-    hello: "좋은 아침이에요",
     representativeHour: 9,
   },
   noon: {
     ko: "점심",
     sky: ["#1C6FD1", "#3D8FE0", "#7DB9EE"],
-    hello: "맛있는 점심 드세요",
     representativeHour: 12.5,
   },
   afternoon: {
     ko: "오후",
     sky: ["#2766B8", "#4C88D2", "#9CBFE6"],
-    hello: "나른한 오후, 힘내세요",
     representativeHour: 15.5,
   },
   evening: {
     ko: "저녁",
     sky: ["#262B66", "#874A7E", "#E58A62"],
-    hello: "편안한 저녁 보내세요",
     representativeHour: 17.5,
   },
   night: {
     ko: "밤",
     sky: ["#060A1E", "#0F1838", "#1C2A55"],
-    hello: "오늘 하루도 수고했어요",
     representativeHour: 22,
   },
 };
@@ -82,8 +72,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 1,
     drops: null,
     flakes: 0,
-    tip: "햇살이 좋은 날이에요",
-    darkTip: "하늘이 맑아요",
     lohi: [13, 22],
   },
   "few-clouds": {
@@ -94,7 +82,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0.7,
     drops: null,
     flakes: 0,
-    tip: "구름이 조금 있는 맑은 날이에요",
     lohi: [13, 21],
   },
   "scattered-clouds": {
@@ -105,7 +92,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0.35,
     drops: null,
     flakes: 0,
-    tip: "구름이 많지만 비 소식은 없어요",
     lohi: [14, 20],
   },
   overcast: {
@@ -116,7 +102,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0.1,
     drops: null,
     flakes: 0,
-    tip: "하늘이 잔뜩 흐려요",
     lohi: [14, 19],
   },
   mist: {
@@ -128,7 +113,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0.05,
     drops: null,
     flakes: 0,
-    tip: "안개가 꼈어요, 운전 조심하세요",
     lohi: [11, 18],
   },
   drizzle: {
@@ -139,7 +123,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: "drizzle",
     flakes: 0,
-    tip: "이슬비가 내려요, 작은 우산을 챙기세요",
     lohi: [13, 17],
   },
   rain: {
@@ -151,7 +134,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: "rain",
     flakes: 0,
-    tip: "우산을 꼭 챙기세요",
     lohi: [12, 16],
   },
   shower: {
@@ -163,7 +145,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: "shower",
     flakes: 0,
-    tip: "갑작스러운 소나기에 대비하세요",
     lohi: [15, 21],
   },
   thunderstorm: {
@@ -176,7 +157,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: "rain",
     flakes: 0,
-    tip: "천둥번개가 쳐요, 실내에 머무르세요",
     lohi: [17, 23],
   },
   snow: {
@@ -187,7 +167,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: null,
     flakes: 70,
-    tip: "눈이 와요, 길이 미끄러워요",
     lohi: [-5, 1],
   },
   sleet: {
@@ -198,7 +177,6 @@ export const WEATHER_THEMES: Record<WeatherKey, WeatherTheme> = {
     stars: 0,
     drops: "sleet",
     flakes: 32,
-    tip: "진눈깨비가 내려요, 빙판길 조심하세요",
     lohi: [-1, 3],
   },
 };
@@ -212,7 +190,6 @@ export const NEUTRAL_THEME: WeatherTheme = {
   stars: 1,
   drops: null,
   flakes: 0,
-  tip: "",
   lohi: [0, 0],
 };
 
@@ -276,17 +253,6 @@ export function getStarsOpacity(
   weather: WeatherKey | null,
 ): number {
   return isDarkTime(timeKey) ? getWeatherTheme(weather).stars : 0;
-}
-
-/** 인사말 뒤에 날씨 안내 문구를 " · "로 붙인다. 날씨를 모르면 인사말만. */
-export function getGreeting(
-  timeKey: TimeKey,
-  weather: WeatherKey | null,
-): string {
-  const theme = getWeatherTheme(weather);
-  const tip = isDarkTime(timeKey) ? (theme.darkTip ?? theme.tip) : theme.tip;
-  const hello = TIME_THEMES[timeKey].hello;
-  return tip ? `${hello} · ${tip}` : hello;
 }
 
 const ICON_BY_WEATHER: Record<

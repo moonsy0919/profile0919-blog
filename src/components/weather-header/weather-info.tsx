@@ -2,7 +2,7 @@
 
 import type { WeatherReport } from "./scene";
 import { useWeatherScene } from "./scene-context";
-import { TIME_THEMES, getGreeting, getIconName } from "./theme";
+import { TIME_THEMES, getIconName } from "./theme";
 import { WeatherIcon } from "./weather-icon";
 
 /** 마운트 전·값이 없을 때 높이를 유지하기 위한 공백 문자 */
@@ -12,11 +12,10 @@ type TimeBlockProps = {
   timeLabel: string;
   date: string | null;
   clock: string | null;
-  greeting: string;
 };
 
-/** 왼쪽: 시간대 칩 + 날짜, 시계, 인사말 */
-function TimeBlock({ timeLabel, date, clock, greeting }: TimeBlockProps) {
+/** 왼쪽: 시간대 칩 + 날짜, 시계 */
+function TimeBlock({ timeLabel, date, clock }: TimeBlockProps) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <div className="flex items-center gap-2 text-sm font-medium text-white/90">
@@ -28,7 +27,6 @@ function TimeBlock({ timeLabel, date, clock, greeting }: TimeBlockProps) {
       <div className="text-[clamp(40px,5.5vw,60px)] leading-[1.1] font-light tracking-[-0.01em]">
         {clock ?? PLACEHOLDER}
       </div>
-      <div className="text-base font-medium text-white/[0.92]">{greeting}</div>
     </div>
   );
 }
@@ -73,7 +71,7 @@ function ReportBlock({ report, icon }: ReportBlockProps) {
 }
 
 /**
- * 시계·날씨 정보 영역: 왼쪽 시간대 칩·날짜·시계·인사말, 오른쪽 날씨 요약.
+ * 시계·날씨 정보 영역: 왼쪽 시간대 칩·날짜·시계, 오른쪽 날씨 요약.
  * WeatherScene 안에서 같은 장면 값을 읽는다. 날씨를 기다리는 동안은 스켈레톤으로 같은 크기의 자리를 잡는다.
  * @param className 높이·세로 패딩 등 바깥에서 정하는 클래스
  */
@@ -89,7 +87,6 @@ export function WeatherInfo({ className = "" }: { className?: string }) {
         timeLabel={TIME_THEMES[scene.timeKey].ko}
         date={scene.date}
         clock={scene.clock}
-        greeting={getGreeting(scene.timeKey, scene.weather)}
       />
       {loading && <ReportSkeleton />}
       {scene.report && <ReportBlock report={scene.report} icon={icon} />}
