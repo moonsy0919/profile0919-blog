@@ -23,3 +23,14 @@ export const URL_MAX = 2048;
 
 /** slug로 쓸 수 없는 예약어. /posts/new 라우트와 충돌하기 때문이다 */
 export const RESERVED_SLUGS: readonly string[] = ["new"];
+
+/** 프로필 이미지 최대 용량 (5MB) */
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+/** 프로필 이미지로 허용하는 MIME 형식 (PNG/JPG/GIF/WEBP) */
+export const AVATAR_ACCEPT_TYPES: readonly string[] = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+];
