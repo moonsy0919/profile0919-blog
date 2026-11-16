@@ -35,7 +35,7 @@ src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
 │   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 개발 환경에서는 게시글·개발 일기 영역을 각각 Suspense·SectionErrorBoundary로 감싸 렌더링하고, 프로덕션(isDevOnlyOpen false)에서는 MainPlaceholder를 HTTP 200으로 보여 준다(Task 018·019에서 게이트 해제)
-│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 모드 자리(Task 011), 빈 라우트: posts/new, dev-logs/new, login, profile/edit (모두 assertDevOnly 게이트)
+│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 모드 자리(Task 011), 빈 라우트: posts/new, dev-logs/new (assertDevOnly 게이트), 폼 화면: login(LoginForm)·profile/edit(ProfileForm, getProfile 값으로 초기화) (둘 다 assertDevOnly 게이트, Task 012)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
 │   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
@@ -76,6 +76,10 @@ src/
 │   ├── section-error-boundary.tsx # "use client" — 한 영역의 오류를 그 영역 안에서만 처리하고 [다시 시도] 제공
 │   ├── thumbnail-image.tsx # "use client" — 카드 썸네일(16:9). 없거나 불러오기 실패 시 public/default-thumbnail.svg로 대체. 두 카드가 공유
 │   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
+│   ├── form-field.tsx     # 라벨 + 입력 + 오류 문구 묶음. 오류가 있으면 aria-invalid·aria-describedby로 연결. 로그인·프로필 폼 공용
+│   ├── submit-button.tsx  # 제출 버튼 — submitting이면 비활성 + 스피너
+│   ├── login-form.tsx     # "use client" — /login 폼(idle/submitting/error). `authenticate` prop으로 인증 호출을 받으며 기본값은 항상 실패하는 더미(Task 016에서 교체). 실패 문구는 한 가지로 통일
+│   ├── profile-form.tsx   # "use client" — /profile/edit 폼. useProfileForm 훅이 dirty·저장·취소를 관리하고, 변경이 있으면 [취소]에서 LeaveDialog로 확인. 더미 updateProfile 호출. profile-avatar-field.tsx는 이미지 미리보기·선택·제거 컨트롤
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
@@ -83,12 +87,13 @@ src/
     ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
+    ├── use-unsaved-changes.ts # useUnsavedChanges(dirty) — 변경이 있을 때만 beforeunload 등록. use-avatar-picker.ts — 프로필 이미지 선택·로컬 미리보기(objectURL 해제 포함). Task 013 폼도 이탈 확인에 재사용
     ├── pagination.ts      # PAGE_SIZE(4, 개발 일기)·POST_PAGE_SIZE(6, 게시글)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 두 상수를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
     ├── format-date.ts     # formatPostDate() — ISO 날짜를 서울 기준 ko-KR(예: 2026. 10. 20.)로 변환. 카드 2종이 공유
     ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref, 상세 [수정] 링크 buildEditHref
     ├── edit-mode.ts       # isEditRequested·isEditMode(관리자 + edit=1일 때만 수정 모드, 비관리자는 읽기 모드)·buildDetailMetadata(edit=1이면 noindex)
     ├── text/excerpt.ts    # extractExcerpt() — 마크다운 기호를 지운 카드용 본문 요약 발췌
-    ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
+    ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors), login.ts(로그인 폼 스키마), avatar.ts(프로필 이미지 형식·5MB 선검증 validateAvatarFile). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
 e2e/                       # Playwright E2E 테스트
 ```
