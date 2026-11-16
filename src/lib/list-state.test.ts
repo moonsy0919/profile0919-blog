@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBackHref,
   buildDetailHref,
+  buildEditHref,
   buildListQuery,
   parseListState,
 } from "@/lib/list-state";
@@ -128,6 +129,32 @@ describe("buildBackHref", () => {
         { includeTag: false },
       ),
     ).toBe("/dev-logs?page=3");
+  });
+});
+
+describe("buildEditHref", () => {
+  it("직접 접근이면 edit=1만 붙인다", () => {
+    expect(buildEditHref("/posts/a", {})).toBe("/posts/a?edit=1");
+  });
+
+  it("전달된 tag/page를 유지한 채 edit=1을 붙인다", () => {
+    expect(buildEditHref("/posts/a", { tag: "react", page: "3" })).toBe(
+      "/posts/a?tag=react&page=3&edit=1",
+    );
+  });
+
+  it("includeTag가 false면 tag를 버린다", () => {
+    expect(
+      buildEditHref(
+        "/dev-logs/d1",
+        { tag: "react", page: "2" },
+        { includeTag: false },
+      ),
+    ).toBe("/dev-logs/d1?page=2&edit=1");
+  });
+
+  it("잘못된 값은 무시한다", () => {
+    expect(buildEditHref("/posts/a", { page: "abc" })).toBe("/posts/a?edit=1");
   });
 });
 

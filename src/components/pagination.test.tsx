@@ -33,6 +33,14 @@ describe("Pagination", () => {
     expect(link("다음").getAttribute("href")).toBe("/?tag=react&page=3");
   });
 
+  it("basePath를 주면 모든 링크가 그 경로를 기준으로 만들어진다", () => {
+    render(<Pagination page={2} totalPages={3} basePath="/dev-logs" />);
+    expect(link("1").getAttribute("href")).toBe("/dev-logs");
+    expect(link("3").getAttribute("href")).toBe("/dev-logs?page=3");
+    expect(link("이전").getAttribute("href")).toBe("/dev-logs");
+    expect(link("다음").getAttribute("href")).toBe("/dev-logs?page=3");
+  });
+
   it("중간 페이지에서는 이전과 다음이 이웃 페이지로 연결된다", () => {
     render(<Pagination page={2} totalPages={3} />);
     expect(link("이전").getAttribute("href")).toBe("/");

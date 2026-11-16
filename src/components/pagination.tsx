@@ -16,9 +16,10 @@ const DISABLED_CLASS = "pointer-events-none opacity-50";
  * 목록 페이지 링크를 만든다. 선택된 태그는 유지하고 1페이지는 page를 생략한다.
  * @param page 이동할 페이지 번호
  * @param tag 현재 선택된 태그
+ * @param basePath 목록 경로 (예: "/", "/dev-logs")
  */
-function pageHref(page: number, tag?: string): Route {
-  return `/${buildListQuery({ tag, page })}` as Route;
+function pageHref(page: number, tag: string | undefined, basePath: string) {
+  return `${basePath}${buildListQuery({ tag, page })}` as Route;
 }
 
 /**
@@ -26,15 +27,18 @@ function pageHref(page: number, tag?: string): Route {
  * @param label 버튼 글자
  * @param target 이동할 페이지 번호 (없으면 비활성)
  * @param tag 현재 선택된 태그
+ * @param basePath 목록 경로
  */
 function StepButton({
   label,
   target,
   tag,
+  basePath,
 }: {
   label: string;
   target: number | null;
   tag?: string;
+  basePath: string;
 }) {
   if (target === null) {
     return (
@@ -44,7 +48,10 @@ function StepButton({
     );
   }
   return (
-    <Link href={pageHref(target, tag)} className={cn(BUTTON_CLASS, LINK_CLASS)}>
+    <Link
+      href={pageHref(target, tag, basePath)}
+      className={cn(BUTTON_CLASS, LINK_CLASS)}
+    >
       {label}
     </Link>
   );
@@ -56,15 +63,18 @@ function StepButton({
  * @param page 현재 페이지 번호
  * @param totalPages 전체 페이지 수
  * @param tag 현재 선택된 태그 (링크에 함께 유지한다)
+ * @param basePath 목록 경로 (기본값 "/", 개발 일기 목록은 "/dev-logs")
  */
 export function Pagination({
   page,
   totalPages,
   tag,
+  basePath = "/",
 }: {
   page: number;
   totalPages: number;
   tag?: string;
+  basePath?: string;
 }) {
   if (totalPages <= 1) return null;
 
@@ -76,6 +86,7 @@ export function Pagination({
             label="이전"
             target={page > 1 ? page - 1 : null}
             tag={tag}
+            basePath={basePath}
           />
         </li>
         {getPageWindow(page, totalPages).map((item, index) => (
@@ -86,7 +97,7 @@ export function Pagination({
               </span>
             ) : (
               <Link
-                href={pageHref(item, tag)}
+                href={pageHref(item, tag, basePath)}
                 aria-current={item === page ? "page" : undefined}
                 className={cn(
                   BUTTON_CLASS,
@@ -103,6 +114,7 @@ export function Pagination({
             label="다음"
             target={page < totalPages ? page + 1 : null}
             tag={tag}
+            basePath={basePath}
           />
         </li>
       </ul>

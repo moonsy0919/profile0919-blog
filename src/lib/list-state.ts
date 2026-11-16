@@ -95,3 +95,20 @@ export function buildBackHref(
   const includeTag = options.includeTag ?? true;
   return `${listPath}${buildListQuery({ tag: includeTag ? tag : undefined, page })}`;
 }
+
+/**
+ * 상세의 [수정] 링크를 만든다. 진입 때 전달된 tag/page를 유지한 채 edit=1을 붙인다.
+ * @param detailPath 상세 경로 (예: /posts/hello-blog)
+ * @param searchParams 상세 페이지가 받은 searchParams
+ * @param options includeTag를 false로 두면 tag를 버린다 (개발 일기용)
+ */
+export function buildEditHref(
+  detailPath: string,
+  searchParams: RawSearchParams,
+  options: { includeTag?: boolean } = {},
+): string {
+  const { tag, page } = parseListState(searchParams);
+  const includeTag = options.includeTag ?? true;
+  const query = buildListQuery({ tag: includeTag ? tag : undefined, page });
+  return `${detailPath}${query ? `${query}&edit=1` : "?edit=1"}`;
+}
