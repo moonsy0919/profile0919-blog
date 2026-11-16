@@ -3,7 +3,7 @@ function Block({ className }: { className: string }) {
   return <div className={`animate-pulse rounded-md bg-muted ${className}`} />;
 }
 
-/** 게시글 영역 로딩 자리: 사이드바 줄 몇 개와 카드 4장 */
+/** 게시글 영역 로딩 자리: 사이드바 줄 몇 개와 카드 6장(3열) */
 export function PostListSkeleton() {
   return (
     <div
@@ -16,9 +16,9 @@ export function PostListSkeleton() {
           <Block key={i} className="h-8 w-24 sm:w-full" />
         ))}
       </div>
-      <div className="flex flex-col gap-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Block key={i} className="h-40" />
+      <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Block key={i} className="h-64" />
         ))}
       </div>
     </div>

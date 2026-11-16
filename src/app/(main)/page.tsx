@@ -21,7 +21,7 @@ export default async function Home({
   const { tag, page } = parseListState(await searchParams);
 
   return (
-    <div className="container mx-auto flex max-w-5xl flex-col gap-12 px-4 py-8">
+    <div className="container mx-auto flex max-w-6xl flex-col gap-12 px-4 py-8">
       <h1 className="sr-only">블로그</h1>
       <SectionErrorBoundary label="게시글">
         <Suspense fallback={<PostListSkeleton />}>

@@ -6,6 +6,7 @@
  */
 export {
   PAGE_SIZE,
+  POST_PAGE_SIZE,
   getDevLog,
   getDevLogs,
   getPost,

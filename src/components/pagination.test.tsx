@@ -50,14 +50,24 @@ describe("Pagination", () => {
   it("첫 페이지에서는 이전이 링크가 아니라 비활성이다", () => {
     render(<Pagination page={1} totalPages={3} />);
     expect(screen.queryByRole("link", { name: "이전" })).toBeNull();
-    expect(screen.getByText("이전").getAttribute("aria-disabled")).toBe("true");
+    expect(
+      screen
+        .getByText("이전")
+        .closest("[aria-disabled]")
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(link("다음")).toBeTruthy();
   });
 
   it("마지막 페이지에서는 다음이 링크가 아니라 비활성이다", () => {
     render(<Pagination page={3} totalPages={3} />);
     expect(screen.queryByRole("link", { name: "다음" })).toBeNull();
-    expect(screen.getByText("다음").getAttribute("aria-disabled")).toBe("true");
+    expect(
+      screen
+        .getByText("다음")
+        .closest("[aria-disabled]")
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(link("이전")).toBeTruthy();
   });
 

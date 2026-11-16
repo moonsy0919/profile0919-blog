@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_SIZE, clampPage, getPageWindow } from "@/lib/pagination";
+import {
+  PAGE_SIZE,
+  POST_PAGE_SIZE,
+  clampPage,
+  getPageWindow,
+} from "@/lib/pagination";
 
 describe("clampPage", () => {
-  it("페이지당 개수는 4개다", () => {
+  it("페이지당 개수는 개발 일기 4개, 게시글 6개다", () => {
     expect(PAGE_SIZE).toBe(4);
+    expect(POST_PAGE_SIZE).toBe(6);
   });
 
   it("범위 안의 페이지는 그대로 돌려준다", () => {

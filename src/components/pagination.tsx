@@ -1,15 +1,18 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { buildListQuery } from "@/lib/list-state";
 import { getPageWindow } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 
-/** 번호·이전·다음 버튼의 공통 스타일 */
-const BUTTON_CLASS =
-  "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-border px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
+/** 번호 링크의 공통 스타일: 테두리 없이 글자만, 현재 페이지는 진하게 */
+const NUMBER_CLASS =
+  "inline-flex h-10 min-w-10 items-center justify-center rounded-full px-2 text-base text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring";
+const CURRENT_CLASS = "font-semibold text-foreground";
+/** 이전·다음은 테두리가 있는 동그란 버튼 */
+const STEP_CLASS =
+  "inline-flex size-10 items-center justify-center rounded-full border border-border text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring";
 const LINK_CLASS = "hover:bg-muted";
-const CURRENT_CLASS =
-  "border-primary bg-primary text-primary-foreground hover:bg-primary/90";
 const DISABLED_CLASS = "pointer-events-none opacity-50";
 
 /**
@@ -24,7 +27,7 @@ function pageHref(page: number, tag: string | undefined, basePath: string) {
 
 /**
  * 이전·다음 버튼. 이동할 페이지가 없으면 링크 대신 비활성 표시로 그린다.
- * @param label 버튼 글자
+ * @param label 스크린 리더용 버튼 이름 ("이전" 또는 "다음")
  * @param target 이동할 페이지 번호 (없으면 비활성)
  * @param tag 현재 선택된 태그
  * @param basePath 목록 경로
@@ -40,19 +43,26 @@ function StepButton({
   tag?: string;
   basePath: string;
 }) {
+  const Icon = label === "이전" ? ChevronLeft : ChevronRight;
+  const content = (
+    <>
+      <Icon className="size-5" aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+    </>
+  );
   if (target === null) {
     return (
-      <span aria-disabled="true" className={cn(BUTTON_CLASS, DISABLED_CLASS)}>
-        {label}
+      <span aria-disabled="true" className={cn(STEP_CLASS, DISABLED_CLASS)}>
+        {content}
       </span>
     );
   }
   return (
     <Link
       href={pageHref(target, tag, basePath)}
-      className={cn(BUTTON_CLASS, LINK_CLASS)}
+      className={cn(STEP_CLASS, LINK_CLASS)}
     >
-      {label}
+      {content}
     </Link>
   );
 }
@@ -80,7 +90,7 @@ export function Pagination({
 
   return (
     <nav aria-label="페이지 이동">
-      <ul className="flex flex-wrap items-center justify-center gap-1">
+      <ul className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
         <li>
           <StepButton
             label="이전"
@@ -99,10 +109,7 @@ export function Pagination({
               <Link
                 href={pageHref(item, tag, basePath)}
                 aria-current={item === page ? "page" : undefined}
-                className={cn(
-                  BUTTON_CLASS,
-                  item === page ? CURRENT_CLASS : LINK_CLASS,
-                )}
+                className={cn(NUMBER_CLASS, item === page && CURRENT_CLASS)}
               >
                 {item}
               </Link>

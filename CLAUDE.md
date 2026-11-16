@@ -66,7 +66,7 @@ src/
 │   ├── admin-actions.tsx  # "use client" — 상세 맨 아래 [수정] 링크 + DeleteButton. 삭제 진행 중에는 [수정]도 비활성
 │   ├── delete-button.tsx  # "use client" — [삭제] 확인 다이얼로그(ui/dialog 기반, PRD 4.1 문구). 더미 deletePost/deleteDevLog 호출 후 토스트·이동
 │   ├── edit-mode-placeholder.tsx # `?edit=1` 수정 모드 자리(Task 013에서 폼으로 교체). [취소]는 edit만 제거한 읽기 모드 링크
-│   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용. 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 메인의 PostListSection이 배치한다(Task 010)
+│   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용, 테두리 없는 카드(썸네일·한 줄 제목·3줄 요약·날짜). 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 메인의 PostListSection이 배치한다(Task 010)
 │   ├── dev-log-card.tsx   # 개발 일기 카드 — 제목 링크를 카드 전체로 확장(stretched link), GitHub 링크는 별도 앵커(z-10)로 중첩 방지, 태그 칩 3개 + "+n". 상세 링크는 page만 전달
 │   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
 │   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음. `basePath` prop(기본 `/`)으로 `/dev-logs`에서도 사용
@@ -83,7 +83,7 @@ src/
     ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
-    ├── pagination.ts      # PAGE_SIZE(4)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 PAGE_SIZE를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
+    ├── pagination.ts      # PAGE_SIZE(4, 개발 일기)·POST_PAGE_SIZE(6, 게시글)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 두 상수를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")
     ├── format-date.ts     # formatPostDate() — ISO 날짜를 서울 기준 ko-KR(예: 2026. 10. 20.)로 변환. 카드 2종이 공유
     ├── list-state.ts      # 목록 상태(tag/page) 파싱·보정 parseListState, 쿼리 생성 buildListQuery·buildDetailHref, 상세 [목록으로] 복원 buildBackHref, 상세 [수정] 링크 buildEditHref
     ├── edit-mode.ts       # isEditRequested·isEditMode(관리자 + edit=1일 때만 수정 모드, 비관리자는 읽기 모드)·buildDetailMetadata(edit=1이면 noindex)

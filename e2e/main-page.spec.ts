@@ -6,9 +6,9 @@ test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버
 const postSection = "section[aria-labelledby='post-list-heading']";
 const devLogSection = "section[aria-labelledby='dev-log-heading']";
 
-test("기본 목록은 게시글 4개와 페이지 번호를 보여 준다", async ({ page }) => {
+test("기본 목록은 게시글 6개와 페이지 번호를 보여 준다", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(`${postSection} article`)).toHaveCount(4);
+  await expect(page.locator(`${postSection} article`)).toHaveCount(6);
   await expect(
     page.getByRole("navigation", { name: "페이지 이동" }),
   ).toBeVisible();

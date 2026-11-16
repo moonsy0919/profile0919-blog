@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 /** 항목 링크의 공통 스타일: 모바일은 칩, sm 이상은 세로 목록의 한 줄 */
 const ITEM_CLASS =
-  "flex shrink-0 items-center justify-between gap-2 whitespace-nowrap rounded-full border border-border px-3 py-1 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:rounded-md sm:border-transparent sm:px-2 sm:py-1.5";
+  "flex shrink-0 items-center justify-between gap-2 whitespace-nowrap sm:min-w-0 rounded-full border border-border px-3 py-1 text-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:rounded-md sm:border-transparent sm:px-2 sm:py-1.5";
 const ACTIVE_CLASS =
   "border-primary bg-primary text-primary-foreground hover:bg-primary/90 sm:border-transparent";
 
@@ -35,8 +35,11 @@ function TagItem({
         aria-current={current ? "true" : undefined}
         className={cn(ITEM_CLASS, current && ACTIVE_CLASS)}
       >
-        <span>{label}</span>
-        <span className={cn(!current && "text-muted-foreground")}>{count}</span>
+        {/* 긴 태그 이름은 세로 목록에서 말줄임 처리하고, 가로 칩은 스크롤로 보여 준다 */}
+        <span className="sm:min-w-0 sm:truncate">{label}</span>
+        <span className={cn("shrink-0", !current && "text-muted-foreground")}>
+          {count}
+        </span>
       </Link>
     </li>
   );

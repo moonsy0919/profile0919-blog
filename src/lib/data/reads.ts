@@ -4,7 +4,7 @@ import {
   DEV_VIEWER_COOKIE,
   isDevViewerEnabled,
 } from "@/lib/dev-viewer";
-import { PAGE_SIZE, clampPage } from "@/lib/pagination";
+import { PAGE_SIZE, POST_PAGE_SIZE, clampPage } from "@/lib/pagination";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
 import { dummyProfile } from "./dummy/profile";
@@ -21,7 +21,7 @@ import type {
   Viewer,
 } from "./types";
 
-export { PAGE_SIZE };
+export { PAGE_SIZE, POST_PAGE_SIZE };
 
 /**
  * 최신순(createdAt 내림차순, 동점이면 id 내림차순)으로 정렬한 사본을 돌려준다.
@@ -40,15 +40,20 @@ function sortLatest<T extends { id: string; createdAt: string }>(
  * 이미 정렬된 항목을 페이지 단위로 잘라 결과 형태로 만든다.
  * @param sorted 최신순으로 정렬된 전체 항목
  * @param page 요청한 페이지 번호
+ * @param pageSize 페이지당 항목 수
  */
-function paginate<T>(sorted: T[], page: number | undefined): PagedResult<T> {
-  const current = clampPage(page, sorted.length);
-  const start = (current - 1) * PAGE_SIZE;
+function paginate<T>(
+  sorted: T[],
+  page: number | undefined,
+  pageSize: number,
+): PagedResult<T> {
+  const current = clampPage(page, sorted.length, pageSize);
+  const start = (current - 1) * pageSize;
   return {
-    items: sorted.slice(start, start + PAGE_SIZE),
+    items: sorted.slice(start, start + pageSize),
     total: sorted.length,
     page: current,
-    pageSize: PAGE_SIZE,
+    pageSize,
   };
 }
 
@@ -74,7 +79,7 @@ export async function getPosts(
   const filtered = tag
     ? dummyPosts.filter((post) => hasTagName(post.tags, tag))
     : dummyPosts;
-  return paginate(sortLatest(filtered), page);
+  return paginate(sortLatest(filtered), page, POST_PAGE_SIZE);
 }
 
 /**
@@ -112,7 +117,7 @@ export async function getTagCounts(): Promise<TagCounts> {
 export async function getDevLogs(
   params: GetDevLogsParams = {},
 ): Promise<PagedResult<DevLog>> {
-  return paginate(sortLatest(dummyDevLogs), params.page);
+  return paginate(sortLatest(dummyDevLogs), params.page, PAGE_SIZE);
 }
 
 /**

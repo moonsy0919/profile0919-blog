@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  PAGE_SIZE,
+  POST_PAGE_SIZE,
   getDevLog,
   getDevLogs,
   getPost,
@@ -22,10 +22,10 @@ vi.mock("next/headers", () => ({
 }));
 
 describe("getPosts", () => {
-  it("한 페이지에 4개씩 최신순으로 돌려준다", async () => {
+  it("한 페이지에 6개씩 최신순으로 돌려준다", async () => {
     const result = await getPosts();
-    expect(PAGE_SIZE).toBe(4);
-    expect(result.items).toHaveLength(4);
+    expect(POST_PAGE_SIZE).toBe(6);
+    expect(result.items).toHaveLength(6);
     expect(result.page).toBe(1);
     expect(result.total).toBeGreaterThanOrEqual(10);
     const dates = result.items.map((post) => post.createdAt);
@@ -34,14 +34,16 @@ describe("getPosts", () => {
 
   it("마지막 페이지는 남은 개수만 돌려준다", async () => {
     const first = await getPosts();
-    const lastPage = Math.ceil(first.total / PAGE_SIZE);
+    const lastPage = Math.ceil(first.total / POST_PAGE_SIZE);
     const last = await getPosts({ page: lastPage });
-    expect(last.items).toHaveLength(first.total - (lastPage - 1) * PAGE_SIZE);
+    expect(last.items).toHaveLength(
+      first.total - (lastPage - 1) * POST_PAGE_SIZE,
+    );
   });
 
   it("범위를 벗어난 page는 가장 가까운 페이지로 보정한다", async () => {
     const first = await getPosts();
-    const lastPage = Math.ceil(first.total / PAGE_SIZE);
+    const lastPage = Math.ceil(first.total / POST_PAGE_SIZE);
     expect((await getPosts({ page: 999 })).page).toBe(lastPage);
     expect((await getPosts({ page: 0 })).page).toBe(1);
     expect((await getPosts({ page: -3 })).page).toBe(1);
