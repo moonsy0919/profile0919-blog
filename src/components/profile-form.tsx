@@ -4,21 +4,14 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { FormField } from "@/components/form-field";
+import { LeaveDialog } from "@/components/leave-dialog";
 import { ProfileAvatarField } from "@/components/profile-avatar-field";
 import { SubmitButton } from "@/components/submit-button";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { profileConfig } from "@/config/profile";
 import type { Profile } from "@/lib/data";
 import { updateProfile } from "@/lib/data/actions";
-import { useAvatarPicker } from "@/lib/use-avatar-picker";
+import { useImagePicker } from "@/lib/use-image-picker";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { DISPLAY_NAME_MAX } from "@/lib/validation/constants";
 import { zodErrorToFieldErrors } from "@/lib/validation/errors";
@@ -33,7 +26,7 @@ const SAVE_FAILED_MESSAGE = "저장하지 못했습니다. 다시 시도해 주�
  */
 function useProfileForm(initialProfile: Profile) {
   const router = useRouter();
-  const avatar = useAvatarPicker();
+  const avatar = useImagePicker();
   const [displayName, setDisplayName] = useState(initialProfile.displayName);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -161,41 +154,5 @@ function ProfileFormActions({
         저장
       </SubmitButton>
     </div>
-  );
-}
-
-/** 저장하지 않고 나갈지 묻는 확인 다이얼로그 */
-function LeaveDialog({
-  open,
-  onOpenChange,
-  onLeave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onLeave: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <DialogTitle>저장하지 않고 나갈까요?</DialogTitle>
-          <DialogDescription>
-            변경한 내용은 저장되지 않습니다.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            계속 수정
-          </Button>
-          <Button type="button" variant="destructive" onClick={onLeave}>
-            나가기
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

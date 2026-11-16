@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { EditModePlaceholder } from "@/components/edit-mode-placeholder";
 import { PostDetail } from "@/components/post-detail";
-import { getPost, getViewer } from "@/lib/data";
+import { PostForm } from "@/components/post-form";
+import { getPost, getTags, getViewer } from "@/lib/data";
 import { assertDevOnly } from "@/lib/dev-gate";
 import { buildDetailMetadata, isEditMode } from "@/lib/edit-mode";
 import {
@@ -47,11 +47,13 @@ export default async function PostDetailPage({
 
   // 수정 모드는 서버에서 분기해 읽기 뷰의 버튼·링크가 DOM에 남지 않게 한다
   if (isEditMode(sp, viewer)) {
+    const tags = await getTags();
     return (
-      <EditModePlaceholder
-        kind="post"
-        title={post.title}
+      <PostForm
+        tags={tags}
+        post={post}
         cancelHref={buildBackHref(detailPath, sp)}
+        readQuery={buildBackHref("", sp)}
       />
     );
   }

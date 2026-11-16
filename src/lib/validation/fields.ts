@@ -47,6 +47,15 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
+ * 사이트 내부 경로(예: /dummy/post-01.png)인지 확인한다. 프로토콜 상대 주소(//host)는 제외한다.
+ * 더미 데이터의 썸네일이 이 형태라 수정 폼이 기존 값을 그대로 저장할 수 있어야 한다.
+ * @param value 검사할 문자열
+ */
+function isSitePath(value: string): boolean {
+  return value.startsWith("/") && !value.startsWith("//");
+}
+
+/**
  * 선택 URL 입력을 정리한다. 비어 있거나 공백뿐이면 null로 바꾼다.
  * @param value 입력값 (undefined·null 허용)
  */
@@ -129,7 +138,7 @@ export const githubUrlSchema = z
   );
 
 /**
- * 썸네일(이미지) URL: 선택 값. 비우면 null, 입력하면 http(s) 주소여야 한다.
+ * 썸네일(이미지) URL: 선택 값. 비우면 null, 입력하면 http(s) 주소나 사이트 내부 경로(/…)여야 한다.
  * 이 버킷 경로인지는 업로드·서버 액션 단계(Task 020·021)에서 따로 검증한다.
  */
 export const thumbnailUrlSchema = z
@@ -138,6 +147,6 @@ export const thumbnailUrlSchema = z
   .nullish()
   .transform(emptyToNull)
   .refine(
-    (value) => value === null || isHttpUrl(value),
+    (value) => value === null || isHttpUrl(value) || isSitePath(value),
     "올바른 이미지 주소가 아닙니다",
   );

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { validateAvatarFile } from "@/lib/validation/avatar";
 
-/** 프로필 이미지 선택 상태 */
-type AvatarPickerState = {
+/** 이미지 선택 상태 */
+type ImagePickerState = {
   /** 새로 고른 이미지의 로컬 미리보기 주소 (없으면 null) */
   previewUrl: string | null;
   /** 기존 이미지를 제거했는지 */
@@ -13,19 +13,19 @@ type AvatarPickerState = {
   error: string | null;
 };
 
-const INITIAL_STATE: AvatarPickerState = {
+const INITIAL_STATE: ImagePickerState = {
   previewUrl: null,
   removed: false,
   error: null,
 };
 
 /**
- * 프로필 이미지 선택·제거와 로컬 미리보기를 관리한다.
+ * 이미지(프로필·썸네일) 선택·제거와 로컬 미리보기를 관리한다.
  * 고른 파일은 형식·용량을 먼저 검증하고, 미리보기 주소는 교체·언마운트 때 해제한다.
- * 실제 업로드는 Task 023에서 연결한다.
+ * 실제 업로드는 Task 020~023에서 연결한다.
  */
-export function useAvatarPicker() {
-  const [state, setState] = useState<AvatarPickerState>(INITIAL_STATE);
+export function useImagePicker() {
+  const [state, setState] = useState<ImagePickerState>(INITIAL_STATE);
   const urlRef = useRef<string | null>(null);
 
   useEffect(() => () => revokeUrl(urlRef.current), []);
@@ -42,7 +42,7 @@ export function useAvatarPicker() {
     setState({ previewUrl: urlRef.current, removed: false, error: null });
   }
 
-  /** 이미지를 제거한다. 헤더는 기본 이미지로 폴백된다 */
+  /** 이미지를 제거한다. 표시는 기본 이미지로 폴백된다 */
   function remove() {
     revokeUrl(urlRef.current);
     urlRef.current = null;

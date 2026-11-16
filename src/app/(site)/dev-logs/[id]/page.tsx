@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DevLogDetail } from "@/components/dev-log-detail";
-import { EditModePlaceholder } from "@/components/edit-mode-placeholder";
-import { getDevLog, getViewer } from "@/lib/data";
+import { DevLogForm } from "@/components/dev-log-form";
+import { getDevLog, getTags, getViewer } from "@/lib/data";
 import { assertDevOnly } from "@/lib/dev-gate";
 import { buildDetailMetadata, isEditMode } from "@/lib/edit-mode";
 import {
@@ -50,10 +50,11 @@ export default async function DevLogDetailPage({
 
   // 수정 모드는 서버에서 분기해 읽기 뷰의 버튼·링크가 DOM에 남지 않게 한다
   if (isEditMode(sp, viewer)) {
+    const tags = await getTags();
     return (
-      <EditModePlaceholder
-        kind="devLog"
-        title={devLog.title}
+      <DevLogForm
+        tags={tags}
+        devLog={devLog}
         cancelHref={buildBackHref(detailPath, sp, LINK_OPTIONS)}
       />
     );

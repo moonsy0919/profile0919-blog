@@ -252,6 +252,15 @@ describe("thumbnailUrlSchema", () => {
     expect(parsed(thumbnailUrlSchema, url)).toBe(url);
   });
 
+  it("사이트 내부 경로(/…)는 통과시키고 프로토콜 상대 주소(//)는 거부한다", () => {
+    expect(parsed(thumbnailUrlSchema, "/dummy/post-01.png")).toBe(
+      "/dummy/post-01.png",
+    );
+    expect(thumbnailUrlSchema.safeParse("//evil.com/a.png").success).toBe(
+      false,
+    );
+  });
+
   it("http가 아닌 스킴과 URL이 아닌 값은 거부한다", () => {
     for (const value of ["javascript:alert(1)", "ftp://a.com/x", "not a url"]) {
       expect(thumbnailUrlSchema.safeParse(value).success).toBe(false);
