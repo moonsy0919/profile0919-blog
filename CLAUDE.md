@@ -71,7 +71,7 @@ src/
 │   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
 │   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음. `basePath` prop(기본 `/`)으로 `/dev-logs`에서도 사용
 │   ├── post-list-section.tsx # async 서버 컴포넌트 — 메인 게시글 영역(TagSidebar + PostCard 목록 + Pagination). 보정된 page를 카드·페이지 번호에 사용. 모바일 1열은 grid-cols-[minmax(0,1fr)] 필수(없으면 태그 칩이 페이지를 가로로 넘치게 함). post-list-empty.tsx는 빈 상태(태그 유무로 문구 분기, [전체 보기])
-│   ├── dev-log-section.tsx # async 서버 컴포넌트 — 메인 개발 일기 영역(최신 4개 그리드, [개발 일기 더 보기], 관리자만 [게시]를 서버에서 렌더링)
+│   ├── dev-log-section.tsx # async 서버 컴포넌트 — 메인 개발 일기 영역(최신 4개 그리드, 제목 링크(→ /dev-logs), 관리자만 [게시]를 서버에서 렌더링)
 │   ├── main-placeholder.tsx # 프로덕션 `/`의 임시 화면(게이트가 닫힌 동안). main-skeletons.tsx는 두 영역의 로딩 자리
 │   ├── section-error-boundary.tsx # "use client" — 한 영역의 오류를 그 영역 안에서만 처리하고 [다시 시도] 제공
 │   ├── thumbnail-image.tsx # "use client" — 카드 썸네일(16:9). 없거나 불러오기 실패 시 public/default-thumbnail.svg로 대체. 두 카드가 공유

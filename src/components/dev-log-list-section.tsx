@@ -1,3 +1,4 @@
+import { NotebookPen } from "lucide-react";
 import Link from "next/link";
 import { DevLogCard } from "@/components/dev-log-card";
 import { Pagination } from "@/components/pagination";
@@ -23,7 +24,14 @@ export async function DevLogListSection({ page }: { page: number }) {
       className="flex flex-col gap-6"
     >
       <div className="flex items-center justify-between gap-2">
-        <h1 id="dev-log-list-heading" className="text-2xl font-semibold">
+        {/* 메인 개발 일기 영역 제목과 같은 아이콘 타일. 이 페이지가 목록 자체라 화살표(링크 표시)는 없다 */}
+        <h1
+          id="dev-log-list-heading"
+          className="flex items-center gap-2.5 text-xl font-bold"
+        >
+          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <NotebookPen className="size-5" aria-hidden="true" />
+          </span>
           개발 일기
         </h1>
         {viewer.isAdmin && (

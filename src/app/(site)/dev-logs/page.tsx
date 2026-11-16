@@ -19,7 +19,7 @@ export default async function DevLogsPage({
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      <Suspense fallback={<DevLogSkeleton />}>
+      <Suspense fallback={<DevLogSkeleton panel={false} />}>
         <DevLogListSection page={page} />
       </Suspense>
     </div>

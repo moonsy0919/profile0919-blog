@@ -25,15 +25,18 @@ export function PostListSkeleton() {
   );
 }
 
-/** 개발 일기 영역 로딩 자리: 제목 줄과 카드 4장 */
-export function DevLogSkeleton() {
+/**
+ * 개발 일기 영역 로딩 자리: 제목 줄과 카드 4장.
+ * @param panel 메인처럼 회색 패널로 감쌀지 (개발 일기 목록 페이지는 패널이 없어 false)
+ */
+export function DevLogSkeleton({ panel = true }: { panel?: boolean }) {
   return (
     <div
       role="status"
       aria-label="개발 일기 불러오는 중"
-      className="flex flex-col gap-4"
+      className={`flex flex-col gap-6 ${panel ? "rounded-2xl bg-muted/60 p-5 sm:p-8" : ""}`}
     >
-      <Block className="h-7 w-28" />
+      <Block className="h-9 w-36" />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, i) => (
           <Block key={i} className="h-48" />

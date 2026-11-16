@@ -65,15 +65,13 @@ test("카드 링크가 현재 tag/page를 상세로 전달한다", async ({ page
   expect(href).toContain("page=2");
 });
 
-test("개발 일기 영역은 최신 4개와 더 보기 링크를 보여 준다", async ({
+test("개발 일기 영역은 최신 4개와 목록으로 가는 제목 링크를 보여 준다", async ({
   page,
 }) => {
   await page.goto("/");
   await expect(page.locator(`${devLogSection} article`)).toHaveCount(4);
   await expect(
-    page
-      .locator(devLogSection)
-      .getByRole("link", { name: "개발 일기 더 보기" }),
+    page.locator(devLogSection).getByRole("link", { name: "개발 일기" }),
   ).toHaveAttribute("href", "/dev-logs");
 });
 
