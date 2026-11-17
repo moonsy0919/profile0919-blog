@@ -111,9 +111,12 @@ async function completeLogin(
   next: string | undefined,
   via: "trusted_ip" | "email_code",
 ): Promise<ActionResult<LoginOutcome>> {
-  await approveSession(ctx, session, via);
-  await ensureProfile(ctx.admin, session.userId);
-  await resetLoginFailures(ctx.admin, ctx.ip);
+  // 서로 독립이라 동시에 처리해 왕복 횟수를 줄인다
+  await Promise.all([
+    approveSession(ctx, session, via),
+    ensureProfile(ctx.admin, session.userId),
+    resetLoginFailures(ctx.admin, ctx.ip),
+  ]);
   return { ok: true, data: { status: "done", redirectTo: sanitizeNext(next) } };
 }
 
@@ -160,13 +163,17 @@ export async function runLogin(
   if (error) return failAndCount(ctx);
 
   const session = await readSession(ctx.supabase);
-  if (!session || !(await isAllowlistedAdmin(ctx.admin, session.userId))) {
+  const [allowed, trusted] = session
+    ? await Promise.all([
+        isAllowlistedAdmin(ctx.admin, session.userId),
+        isTrustedIp(ctx.admin, session.userId, ctx.ip),
+      ])
+    : [false, false];
+  if (!session || !allowed) {
     await ctx.supabase.auth.signOut();
     return failAndCount(ctx);
   }
-  if (await isTrustedIp(ctx.admin, session.userId, ctx.ip)) {
-    return completeLogin(ctx, session, next, "trusted_ip");
-  }
+  if (trusted) return completeLogin(ctx, session, next, "trusted_ip");
   return requestCode(ctx, session);
 }
 

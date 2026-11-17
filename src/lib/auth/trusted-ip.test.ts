@@ -3,8 +3,6 @@ import { addTrustedIp, isTrustedIp } from "./trusted-ip";
 import { createFakeAdmin } from "./test-utils";
 
 const DAY_MS = 86_400_000;
-const daysAgo = (days: number) =>
-  new Date(Date.now() - days * DAY_MS).toISOString();
 
 describe("isTrustedIp", () => {
   it("알 수 없는 IP는 DB를 보지 않고 신뢰하지 않는다", async () => {
@@ -13,28 +11,35 @@ describe("isTrustedIp", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("등록되지 않은 IP는 신뢰하지 않는다", async () => {
-    const { admin } = createFakeAdmin({
-      "admin_trusted_ips.select": [{ data: null }],
+  it("등록되지 않았거나 만료된 IP는 갱신된 행이 없어 신뢰하지 않고 만료 행을 정리한다", async () => {
+    const { admin, calls } = createFakeAdmin({
+      "admin_trusted_ips.update": [{ data: [] }],
     });
     expect(await isTrustedIp(admin, "u1", "1.2.3.4")).toBe(false);
+    const deleted = calls.find((call) => call.op === "delete");
+    expect(deleted?.filters.map(([name]) => name)).toContain("lt");
   });
 
-  it("최근에 쓴 신뢰 IP는 통과하고 마지막 사용 시각을 갱신한다", async () => {
+  it("만료 전 신뢰 IP는 한 번의 호출로 확인·갱신하고 통과한다", async () => {
     const { admin, calls } = createFakeAdmin({
-      "admin_trusted_ips.select": [{ data: { last_used_at: daysAgo(10) } }],
+      "admin_trusted_ips.update": [{ data: [{ ip: "1.2.3.4" }] }],
     });
     expect(await isTrustedIp(admin, "u1", "1.2.3.4")).toBe(true);
-    expect(calls.some((call) => call.op === "update")).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].op).toBe("update");
+    expect(calls[0].payload).toHaveProperty("last_used_at");
   });
 
-  it("90일 넘게 쓰지 않은 IP는 삭제하고 신뢰하지 않는다", async () => {
+  it("갱신 조건에 90일 만료 기준(gte)이 들어간다", async () => {
     const { admin, calls } = createFakeAdmin({
-      "admin_trusted_ips.select": [{ data: { last_used_at: daysAgo(91) } }],
+      "admin_trusted_ips.update": [{ data: [{ ip: "1.2.3.4" }] }],
     });
-    expect(await isTrustedIp(admin, "u1", "1.2.3.4")).toBe(false);
-    expect(calls.some((call) => call.op === "delete")).toBe(true);
-    expect(calls.some((call) => call.op === "update")).toBe(false);
+    await isTrustedIp(admin, "u1", "1.2.3.4");
+    const gte = calls[0].filters.find(([name]) => name === "gte");
+    const [column, cutoff] = gte?.[1] as [string, string];
+    expect(column).toBe("last_used_at");
+    const idleDays = (Date.now() - new Date(cutoff).getTime()) / DAY_MS;
+    expect(Math.round(idleDays)).toBe(90);
   });
 });
 

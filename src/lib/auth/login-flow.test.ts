@@ -126,6 +126,17 @@ describe("runLogin — 차단과 실패", () => {
     expect(m.registerLoginFailure).toHaveBeenCalled();
   });
 
+  it("허용 목록 밖 계정은 신뢰 IP여도 통과하지 못한다(두 확인을 동시에 해도 결과는 같다)", async () => {
+    m.isAllowlistedAdmin.mockResolvedValue(false);
+    m.isTrustedIp.mockResolvedValue(true);
+    const result = await runLogin(values);
+    expect(messageOf(result)).toBe(LOGIN_FAILED_MESSAGE);
+    expect(fake.calls.some((c) => c.table === "admin_verified_sessions")).toBe(
+      false,
+    );
+    expect(m.signOut).toHaveBeenCalledTimes(1);
+  });
+
   it("형식이 틀린 입력은 Supabase를 부르지 않고 실패로 센다", async () => {
     const result = await runLogin({ email: "admin", password: "" });
     expect(messageOf(result)).toBe(LOGIN_FAILED_MESSAGE);

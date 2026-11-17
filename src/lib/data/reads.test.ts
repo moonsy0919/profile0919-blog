@@ -11,11 +11,11 @@ import {
   getViewer,
 } from "@/lib/data";
 
-const getUser = vi.fn();
+const getClaims = vi.fn();
 const rpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser }, rpc }),
+  createClient: async () => ({ auth: { getClaims }, rpc }),
 }));
 
 describe("getPosts", () => {
@@ -115,26 +115,39 @@ describe("getProfile / getViewer", () => {
     expect(profile.displayName.length).toBeGreaterThan(0);
   });
 
-  it("로그인하지 않았으면 방문자다", async () => {
-    getUser.mockResolvedValue({ data: { user: null }, error: null });
+  it("로그인하지 않았으면 방문자이고 DB를 부르지 않는다", async () => {
+    getClaims.mockResolvedValue({ data: null, error: null });
     expect(await getViewer()).toEqual({ isAdmin: false });
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("로그인했어도 허용 목록 밖이면 방문자다", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+  it("토큰 검증에 실패하면 방문자이고 DB를 부르지 않는다", async () => {
+    getClaims.mockResolvedValue({ data: null, error: { message: "bad jwt" } });
+    expect(await getViewer()).toEqual({ isAdmin: false });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("로그인했어도 승인된 관리자가 아니면 방문자다", async () => {
+    getClaims.mockResolvedValue({
+      data: { claims: { sub: "u1" } },
+      error: null,
+    });
     rpc.mockResolvedValue({ data: false, error: null });
     expect(await getViewer()).toEqual({ isAdmin: false });
   });
 
-  it("허용 목록 안이면 관리자다", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+  it("승인된 관리자면 관리자다(DB 호출은 is_admin 한 번뿐)", async () => {
+    getClaims.mockResolvedValue({
+      data: { claims: { sub: "u1" } },
+      error: null,
+    });
     rpc.mockResolvedValue({ data: true, error: null });
     expect(await getViewer()).toEqual({ isAdmin: true });
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it("조회 중 오류가 나면 방문자로 폴백한다", async () => {
-    getUser.mockRejectedValue(new Error("network"));
+    getClaims.mockRejectedValue(new Error("network"));
     expect(await getViewer()).toEqual({ isAdmin: false });
   });
 });

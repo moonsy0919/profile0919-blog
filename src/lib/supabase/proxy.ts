@@ -13,12 +13,14 @@ function getSupabaseEnv() {
 }
 
 /**
- * 토큰 만료 시 자동 갱신을 위해 `getUser()`를 호출한다.
+ * 토큰 만료 시 자동 갱신을 위해 `getClaims()`를 호출한다.
+ * 토큰이 만료 임박이면 갱신하고, 서명은 JWKS(비대칭 키)로 로컬에서 검증하므로 요청마다 Supabase Auth를
+ * 왕복하지 않는다(getUser()는 매번 네트워크 호출이라 함수와 DB 지역이 멀면 페이지마다 지연이 쌓인다).
  * 실패해도 요청 자체는 막지 않고 서버 로그만 남긴다.
  */
 async function refreshUser(supabase: ReturnType<typeof createServerClient>) {
   try {
-    await supabase.auth.getUser();
+    await supabase.auth.getClaims();
   } catch (error) {
     console.error("[proxy] Supabase 세션 갱신에 실패했습니다.", error);
   }

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { PAGE_SIZE, POST_PAGE_SIZE, clampPage } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { dummyDevLogs } from "./dummy/devLogs";
@@ -130,17 +131,19 @@ export async function getProfile(): Promise<Profile> {
 
 /**
  * 현재 보는 사람(방문자/관리자)을 조회한다.
- * 쿠키의 세션을 getUser()로 Supabase에서 검증하고(getSession은 신뢰하지 않는다),
- * 허용 목록(is_admin)에 있을 때만 관리자로 본다. 어느 단계든 실패하면 방문자다.
+ * 쿠키의 토큰은 getClaims()로 서명을 로컬 검증하고(getSession은 신뢰하지 않는다, 네트워크 호출 없음),
+ * 승인된 세션인 관리자(is_admin)일 때만 관리자로 본다. 권한은 DB(is_admin)가 매번 판단하므로
+ * 로그아웃·세션 삭제는 즉시 반영된다. 어느 단계든 실패하면 방문자다.
+ * React cache로 감싸 한 요청 안에서 헤더·가드·페이지가 여러 번 불러도 DB 호출은 한 번만 한다.
  */
-export async function getViewer(): Promise<Viewer> {
+export const getViewer = cache(async (): Promise<Viewer> => {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return { isAdmin: false };
+    const { data, error } = await supabase.auth.getClaims();
+    if (error || !data?.claims?.sub) return { isAdmin: false };
     const { data: isAdmin, error: rpcError } = await supabase.rpc("is_admin");
     return { isAdmin: !rpcError && isAdmin === true };
   } catch {
     return { isAdmin: false };
   }
-}
+});
