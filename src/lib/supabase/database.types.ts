@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -39,6 +39,111 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_allowlist: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      dev_log_tags: {
+        Row: {
+          dev_log_id: string
+          tag_id: string
+        }
+        Insert: {
+          dev_log_id: string
+          tag_id: string
+        }
+        Update: {
+          dev_log_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_log_tags_dev_log_id_fkey"
+            columns: ["dev_log_id"]
+            isOneToOne: false
+            referencedRelation: "dev_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dev_log_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dev_logs: {
+        Row: {
+          content: string
+          created_at: string
+          github_url: string | null
+          id: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          github_url?: string | null
+          id?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          github_url?: string | null
+          id?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      post_tags: {
+        Row: {
+          post_id: string
+          tag_id: string
+        }
+        Insert: {
+          post_id: string
+          tag_id: string
+        }
+        Update: {
+          post_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_tags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           content: string
@@ -46,6 +151,7 @@ export type Database = {
           id: string
           published: boolean
           slug: string
+          thumbnail_url: string | null
           title: string
           updated_at: string
         }
@@ -55,6 +161,7 @@ export type Database = {
           id?: string
           published?: boolean
           slug: string
+          thumbnail_url?: string | null
           title: string
           updated_at?: string
         }
@@ -64,8 +171,48 @@ export type Database = {
           id?: string
           published?: boolean
           slug?: string
+          thumbnail_url?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string
+          id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name: string
+          id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -74,7 +221,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_tag: {
+        Args: { tag_name: string }
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tags"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_post_tag_counts: {
+        Args: never
+        Returns: {
+          post_count: number
+          tag_id: string
+          tag_name: string
+        }[]
+      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
