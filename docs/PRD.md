@@ -392,17 +392,19 @@ create index dev_logs_created_at_idx on public.dev_logs (created_at desc);
 
 -- 입력 제약 보강: 지금까지는 앱(Zod) 검증에만 의존했다. DB 직접 호출·검증 누락에도 안전하도록 이중 방어한다.
 -- (원격 posts는 0행이므로 기존 데이터와 충돌하지 않는다. 구현 직전에 다시 확인)
+-- 공백 문자만(스페이스·줄바꿈·탭)으로 된 값을 거부하도록 정규식 \S(공백 아닌 문자가 1개 이상)를 함께 검사한다.
+-- btrim()만 쓰면 스페이스만 제거되어 줄바꿈·탭뿐인 값이 통과한다(Task 014 검증에서 확인해 보정 마이그레이션으로 반영).
 alter table public.posts
-  add constraint posts_title_length check (char_length(btrim(title)) between 1 and 100),
+  add constraint posts_title_length check (char_length(btrim(title)) between 1 and 100 and title ~ '\S'),
   add constraint posts_slug_format check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and slug <> 'new'),
-  add constraint posts_content_not_blank check (char_length(btrim(content)) > 0);
+  add constraint posts_content_not_blank check (content ~ '\S');
 alter table public.dev_logs
-  add constraint dev_logs_title_length check (char_length(btrim(title)) between 1 and 100),
-  add constraint dev_logs_content_not_blank check (char_length(btrim(content)) > 0);
+  add constraint dev_logs_title_length check (char_length(btrim(title)) between 1 and 100 and title ~ '\S'),
+  add constraint dev_logs_content_not_blank check (content ~ '\S');
 ```
 
 - 위 인덱스·제약은 2.5의 신규 마이그레이션에 함께 넣는다(기존 `posts` 마이그레이션은 수정하지 않음). `posts.slug`의 고유 제약은 기존 마이그레이션(`slug text not null unique`)에 이미 있다.
-- 제목은 앞뒤 공백을 제거한 길이가 1~100자, 본문은 공백만으로 이루어지면 안 된다(앱 검증과 같은 기준). slug는 소문자·숫자·하이픈 조합이며 `new`는 예약어라 금지한다(4.4 폼 공통 검증과 동일).
+- 제목은 앞뒤 공백을 제거한 길이가 1~100자이고 공백 문자(스페이스·줄바꿈·탭)만으로 이루어지면 안 되며, 본문도 공백 문자만으로 이루어지면 안 된다(앱 검증과 같은 기준). slug는 소문자·숫자·하이픈 조합이며 `new`는 예약어라 금지한다(4.4 폼 공통 검증과 동일).
 
 ### 2.6 SQL: RLS 정책
 
