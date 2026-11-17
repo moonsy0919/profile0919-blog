@@ -35,7 +35,7 @@ src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
 │   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 개발 환경에서는 게시글·개발 일기 영역을 각각 Suspense·SectionErrorBoundary로 감싸 렌더링하고, 프로덕션(isDevOnlyOpen false)에서는 MainPlaceholder를 HTTP 200으로 보여 준다(Task 018·019에서 게이트 해제)
-│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 폼(Task 013), 작성 폼: posts/new(PostForm)·dev-logs/new(DevLogForm) (assertDevOnly 게이트), 폼 화면: login(LoginForm)·profile/edit(ProfileForm, getProfile 값으로 초기화) (둘 다 assertDevOnly 게이트, Task 012)
+│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 폼(Task 013), 작성 폼: posts/new(PostForm)·dev-logs/new(DevLogForm) (assertDevOnly 게이트), 폼 화면: login(LoginForm, 프로덕션에 열림 — 이미 로그인한 관리자는 `next`로 보냄)·profile/edit(ProfileForm, getProfile 값으로 초기화, assertDevOnly 게이트). 작성·프로필 수정 페이지와 상세 `?edit=1`은 `assertDevOnly()` 뒤에서 `requireAdmin`으로 비관리자를 `/login?next=`(edit=1·tag·page 포함)로 보낸다(Task 016)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
 │   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
@@ -53,10 +53,9 @@ src/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
 │   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만) 조회 후 HeaderView에 전달. 확장형에만 WeatherScene·WeatherInfo·WeatherCredit(날씨 코드)를 넘겨 압축형·error.tsx 번들에 섞이지 않게 한다
 │   ├── header-view.tsx    # 표시 전용 헤더(동기, error.tsx 같은 클라이언트에서도 사용). 확장형은 header 1개 안에서 Sky(하늘) 위에 상단 바를 흰 글자(on-sky)로 얹고 아래 슬롯(data-header-slot, min-h-[136px])에 정보 영역을 둔다. 중앙 프로필은 확장형만
-│   ├── header-actions.tsx # 우측 버튼: 방문자 [로그인](프로덕션에서는 숨김) / 관리자 [작성][프로필][로그아웃]. 방문자 HTML에는 관리 버튼이 생성되지 않음
+│   ├── header-actions.tsx # 우측 버튼: 방문자 [로그인] / 관리자 [작성][프로필][로그아웃](logout 서버 액션 폼). 방문자 HTML에는 관리 버튼이 생성되지 않음
 │   ├── profile-badge.tsx  # 헤더 중앙 프로필(이미지+이름). 메인 확장형에서만 사용
 │   ├── on-sky.ts          # 하늘 위에 얹는 버튼·글자 스타일 상수(ON_SKY_BUTTON·ON_SKY_TEXT)
-│   ├── dev-viewer-toggle.tsx # 개발 전용 방문자/관리자 미리보기 토글(dev-viewer 쿠키). 프로덕션에서는 렌더링·쿠키 읽기 없음
 │   ├── page-shell.tsx     # Header + <main id="main-content"> 형제 구성. 그룹 레이아웃과 404·오류 화면이 공유
 │   ├── markdown-content.tsx # 마크다운 본문 렌더(react-markdown + remark-gfm, 원시 HTML 비허용). 본문 `#`은 h2로 낮추고 node prop은 DOM에 펼치지 않는다
 │   ├── post-detail.tsx    # 게시글 상세 읽기 뷰(표시 전용) — [목록으로]·썸네일·제목·날짜·태그 칩·본문. isAdmin일 때만 AdminActions를 그린다
@@ -82,13 +81,14 @@ src/
 │   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
 │   ├── form-field.tsx     # 라벨 + 입력 + 오류 문구 묶음. 오류가 있으면 aria-invalid·aria-describedby로 연결. 로그인·프로필 폼 공용
 │   ├── submit-button.tsx  # 제출 버튼 — submitting이면 비활성 + 스피너
-│   ├── login-form.tsx     # "use client" — /login 폼(idle/submitting/error). `authenticate` prop으로 인증 호출을 받으며 기본값은 항상 실패하는 더미(Task 016에서 교체). 실패 문구는 한 가지로 통일
+│   ├── login-form.tsx     # "use client" — /login 폼 1단계(idle/submitting/error). `authenticate`·`verifyCode`·`resendCode`·`cancelCode` prop(기본값은 서버 액션)이 `LoginStep`(redirect/code/error)을 돌려주며, 새 IP면 `LoginCodeForm`으로 바뀐다. 실패 문구는 서버가 준 것을 그대로 보인다(기본은 통일 문구 하나, 차단은 별도 안내)
+│   ├── login-code-form.tsx # "use client" — 새 IP 로그인 2단계: 이메일 인증 코드(8자리) 입력·[코드 다시 받기]·[취소]. 형식이 틀리면 서버를 부르지 않는다
 │   ├── profile-form.tsx   # "use client" — /profile/edit 폼. useProfileForm 훅이 dirty·저장·취소를 관리하고, 변경이 있으면 [취소]에서 LeaveDialog로 확인. 더미 updateProfile 호출. profile-avatar-field.tsx는 이미지 미리보기·선택·제거 컨트롤
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
     ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
-    ├── dev-viewer.ts      # 개발 전용 관리자 미리보기 쿠키 이름·활성 판정(isDevViewerEnabled). getViewer 더미(resolveDummyViewer)가 사용
+    ├── auth/              # 인증(Task 016·016B) — data 계층과 분리. actions.ts("use server")는 얇은 래퍼: `login`·`verifyLoginCode`·`resendLoginCode`·`cancelLoginCode`·`logout`이며 처리 중 예외는 "지금은 로그인을 처리할 수 없습니다" 결과로 바꾼다. 실제 흐름은 login-flow.ts: ① 차단 IP면 로직 없이 차단 안내 ② 비밀번호 로그인 ③ 허용 목록 확인(밖이면 즉시 signOut) ④ 신뢰 IP면 즉시 로그인(세션을 `admin_verified_sessions`에 승인 기록), 새 IP면 이메일 8자리 코드 단계. 실패(비밀번호·허용 목록·코드 오입력)는 IP별 연속 실패로 합산하고 5회면 차단(수동 해제, 새 차단 시 관리자에게 알림 메일). 모듈: client-ip.ts(IPv4 그대로·IPv6 /64 정규화, `x-forwarded-for` 첫 값 — Vercel 배포 전제), trusted-ip.ts(90일 미사용 만료), challenge.ts(코드 해시 저장·10분·1회용·5회 오입력 폐기·재발송 60초/시간당 5회), ip-attempts.ts(`register_login_failure` RPC), mailer.ts(Resend, 개발은 콘솔)·auth-mails.ts·notify.ts, admins.ts(서비스 키로 허용 목록 조회), login-step.ts(액션 결과→폼 결과). require-admin.ts: `requireAdmin(nextPath)`·`buildLoginHref`, safe-next.ts: `sanitizeNext`, constants.ts: 문구·한도. 관리자 판정은 `getViewer`(reads.ts)가 `getUser()` + `is_admin()`으로 하며, `is_admin()`은 허용 목록이면서 토큰의 `session_id`가 `admin_verified_sessions`에 승인·미만료로 기록된 세션일 때만 true다(비밀번호만 맞은 세션은 관리자가 아니다). 신뢰 IP·차단 해제는 앱 화면 없이 Supabase 대시보드에서 해당 행을 삭제한다(절차·비상 복구는 `docs/admin-auth-operations.md`). `src/lib/supabase/admin.ts`는 서비스 키(`SUPABASE_SERVICE_ROLE_KEY`) 서버 전용 클라이언트(`server-only`)로 위 보안 테이블만 다룬다
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
     ├── use-unsaved-changes.ts # useUnsavedChanges(dirty) — 변경이 있을 때만 beforeunload 등록. use-image-picker.ts — 이미지(프로필·썸네일) 선택·로컬 미리보기(objectURL 해제 포함). use-editor-fields.ts — 게시글·개발 일기 폼의 공통 필드·dirty·제출 상태
@@ -99,15 +99,15 @@ src/
     ├── text/excerpt.ts    # extractExcerpt() — 마크다운 기호를 지운 카드용 본문 요약 발췌. text/slug.ts — suggestSlug() 제목에서 slug 후보 생성
     ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors), login.ts(로그인 폼 스키마), avatar.ts(프로필 이미지 형식·5MB 선검증 validateAvatarFile). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
-e2e/                       # Playwright E2E 테스트
+e2e/                       # Playwright E2E 테스트. 관리자 로그인이 필요한 spec은 helpers/admin-session.ts(관리자 ID/PW로 로그인해 세션 쿠키 주입·승인 기록)를 쓰며 로컬 `.env.local`의 `E2E_ADMIN_EMAIL`·`E2E_ADMIN_PASSWORD`·`SUPABASE_SERVICE_ROLE_KEY`가 필요하다(세션을 승인 기록하려면 서비스 키가 필요. E2E 계정 정보는 배포 환경·CI에 두지 않음). 오입력·차단 테스트는 `x-forwarded-for`로 가짜 IP(198.51.100.x)를 써서 로컬 IP가 차단되지 않게 한다. 이미 떠 있는 개발 서버는 `E2E_PORT=3000`으로 재사용
 supabase/migrations/       # DB 마이그레이션(Task 014) — 원격과 같은 버전 번호의 파일명, 파일마다 되돌림 SQL을 주석으로 기록
 ```
 
 **DB 구조(Task 014)**: 개발과 운영이 같은 Supabase 프로젝트이므로 마이그레이션은 한 번에 하나씩 적용하고, 적용 전 되돌림 SQL을 파일 주석에 남기며, 파괴적 변경(컬럼·테이블 삭제)은 하지 않는다. 적용할 때마다 보안·성능 어드바이저를 확인한다. 이미 적용한 마이그레이션은 수정하지 않고 새 파일로 보정한다.
 
-- 테이블: `posts`·`tags`·`post_tags`·`dev_logs`·`dev_log_tags`·`profiles`·`admin_allowlist`. 신규 테이블은 생성과 같은 마이그레이션에서 RLS를 켠다.
+- 테이블: `posts`·`tags`·`post_tags`·`dev_logs`·`dev_log_tags`·`profiles`·`admin_allowlist`·`admin_trusted_ips`·`admin_login_challenges`·`admin_ip_attempts`·`admin_verified_sessions`(뒤 4개는 로그인 보안용, Task 016B — RLS만 켜고 정책이 없어 서비스 키 전용, `admin_verified_sessions`는 `auth.sessions`를 참조해 세션이 사라지면 함께 삭제). 신규 테이블은 생성과 같은 마이그레이션에서 RLS를 켠다.
 - 권한: 쓰기는 `is_admin()`(security definer, `admin_allowlist` 대조)로 한정하고 SELECT는 공개(`post_tags`는 공개 글 한정). `admin_allowlist`는 정책 없이 클라이언트 접근을 막는다.
-- DB 함수: `add_tag(tag_name)`(대소문자 무시 중복 시 기존 태그 반환, authenticated만), `get_post_tag_counts()`(공개 글 기준 `tag_id`·`tag_name`·`post_count`, 태그명 순). `save_post`·`save_dev_log`는 Task 021·022에서 만든다.
+- DB 함수: `add_tag(tag_name)`(대소문자 무시 중복 시 기존 태그 반환, authenticated만), `register_login_failure(p_ip, p_limit)`(IP별 연속 실패를 행 잠금으로 원자적으로 증가, 한도 도달 시 차단 — service_role만), `get_post_tag_counts()`(공개 글 기준 `tag_id`·`tag_name`·`post_count`, 태그명 순). `save_post`·`save_dev_log`는 Task 021·022에서 만든다.
 - check 제약: 제목 1~100자, 본문·제목은 공백 문자만으로 구성 불가(정규식 `\S`), `posts.slug`는 소문자·숫자·하이픈이며 `new` 금지, `dev_logs.github_url`은 `https://github.com/` 시작.
 - Storage: `thumbnails` 버킷(공개, 5MB, 이미지 4종)에 관리자 전용 정책만 둔다(`posts/`·`dev-logs/`·`profile/` 경로).
 - `src/lib/supabase/database.types.ts`는 Supabase 생성 타입이라 Prettier 대상에서 제외된다. 스키마를 바꾸면 재생성한다. 앱의 도메인 타입(`src/lib/data/types.ts`)은 이 타입과 별개로 유지한다.
