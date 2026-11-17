@@ -40,12 +40,10 @@ describe("LoginCodeForm", () => {
   });
 
   it("틀린 코드는 서버가 준 문구를 보인다", async () => {
-    const verifyCode = vi
-      .fn()
-      .mockResolvedValue({
-        type: "error",
-        message: "인증 코드가 올바르지 않습니다",
-      });
+    const verifyCode = vi.fn().mockResolvedValue({
+      type: "error",
+      message: "인증 코드가 올바르지 않습니다",
+    });
     setup({ verifyCode });
     submitCode("12345678");
     expect(

@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-/** 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다) */
+/** 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다). /login은 Task 016에서 열었으므로 제외한다 */
 const gatedPaths = [
   "/dev-logs",
   "/dev-logs/1",
   "/dev-logs/new",
-  "/login",
   "/posts/hello",
   "/posts/new",
   "/profile/edit",
@@ -178,6 +177,13 @@ test("/api/weather 응답에는 Set-Cookie가 붙지 않는다", async ({ reques
   // 외부 API 상태와 무관하게(200/502 모두) 쿠키는 설정되지 않아야 한다.
   expect([200, 502]).toContain(response.status());
   expect(response.headers()["set-cookie"]).toBeUndefined();
+});
+
+test("/login은 공개되어 있고 로그인 폼이 보인다", async ({ page, request }) => {
+  expect((await request.get("/login")).status()).toBe(200);
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
+  await expect(page.getByLabel("아이디(이메일)")).toBeVisible();
 });
 
 test.describe("더미 게이트 (프로덕션 빌드 전용)", () => {
