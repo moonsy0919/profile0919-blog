@@ -100,7 +100,17 @@ src/
     ├── validation/        # Zod 검증(Task 006) — constants.ts(길이·개수·예약어 상수), fields.ts(필드 스키마, normalizeTagName), post.ts·dev-log.ts·profile.ts(폼 스키마, 클라이언트 폼과 서버 액션 공용), errors.ts(zodErrorToFieldErrors: ZodError → ActionError.fieldErrors), login.ts(로그인 폼 스키마), avatar.ts(프로필 이미지 형식·5MB 선검증 validateAvatarFile). 출력 타입은 data/types.ts의 PostInput·DevLogInput·ProfileInput과 같다. 서버 액션 연결은 Task 021·022에서 한다
     └── utils.ts           # cn() 유틸리티 (clsx + tailwind-merge)
 e2e/                       # Playwright E2E 테스트
+supabase/migrations/       # DB 마이그레이션(Task 014) — 원격과 같은 버전 번호의 파일명, 파일마다 되돌림 SQL을 주석으로 기록
 ```
+
+**DB 구조(Task 014)**: 개발과 운영이 같은 Supabase 프로젝트이므로 마이그레이션은 한 번에 하나씩 적용하고, 적용 전 되돌림 SQL을 파일 주석에 남기며, 파괴적 변경(컬럼·테이블 삭제)은 하지 않는다. 적용할 때마다 보안·성능 어드바이저를 확인한다. 이미 적용한 마이그레이션은 수정하지 않고 새 파일로 보정한다.
+
+- 테이블: `posts`·`tags`·`post_tags`·`dev_logs`·`dev_log_tags`·`profiles`·`admin_allowlist`. 신규 테이블은 생성과 같은 마이그레이션에서 RLS를 켠다.
+- 권한: 쓰기는 `is_admin()`(security definer, `admin_allowlist` 대조)로 한정하고 SELECT는 공개(`post_tags`는 공개 글 한정). `admin_allowlist`는 정책 없이 클라이언트 접근을 막는다.
+- DB 함수: `add_tag(tag_name)`(대소문자 무시 중복 시 기존 태그 반환, authenticated만), `get_post_tag_counts()`(공개 글 기준 `tag_id`·`tag_name`·`post_count`, 태그명 순). `save_post`·`save_dev_log`는 Task 021·022에서 만든다.
+- check 제약: 제목 1~100자, 본문·제목은 공백 문자만으로 구성 불가(정규식 `\S`), `posts.slug`는 소문자·숫자·하이픈이며 `new` 금지, `dev_logs.github_url`은 `https://github.com/` 시작.
+- Storage: `thumbnails` 버킷(공개, 5MB, 이미지 4종)에 관리자 전용 정책만 둔다(`posts/`·`dev-logs/`·`profile/` 경로).
+- `src/lib/supabase/database.types.ts`는 Supabase 생성 타입이라 Prettier 대상에서 제외된다. 스키마를 바꾸면 재생성한다. 앱의 도메인 타입(`src/lib/data/types.ts`)은 이 타입과 별개로 유지한다.
 
 **더미 게이트와 HTTP 404**: 프로덕션에서 더미 경로를 닫을 때는 `assertDevOnly()`를 Suspense 경계보다 바깥(layout, 또는 `loading.tsx`가 없는 세그먼트의 page 최상단)에서 호출한다. `loading.tsx`나 `<Suspense>` 안에서 `notFound()`를 부르면 화면은 404여도 HTTP 상태 코드가 200이 된다. 그래서 루트 `loading.tsx`는 두지 않고, 로딩 UI는 데이터를 가져오는 세그먼트에만 둔다.
 
