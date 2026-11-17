@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 
-// 로그인·프로필 수정은 더미 게이트라 프로덕션(CI는 프로덕션 빌드)에서는 404다. 개발 서버에서만 검증한다.
-test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+// /login은 프로덕션에 열려 있어 CI에서도 검증한다. 실제 로그인·세션은 auth.spec.ts(로컬 전용)가 맡는다.
 
 test.describe("로그인 페이지", () => {
   test("빈 제출은 아이디·비밀번호 필드에 오류를 보인다", async ({ page }) => {
@@ -36,21 +36,14 @@ test.describe("로그인 페이지", () => {
     await page.goto("/login?next=/profile/edit");
     await expect(page.getByText("관리자 로그인이 필요합니다")).toBeVisible();
   });
-
-  test("올바른 형식으로 제출하면 통일된 실패 문구를 보인다", async ({
-    page,
-  }) => {
-    await page.goto("/login");
-    await page.getByLabel("아이디(이메일)").fill("admin@example.com");
-    await page.getByLabel("비밀번호").fill("pw");
-    await page.getByRole("button", { name: "로그인" }).click();
-    await expect(
-      page.getByText("아이디 또는 비밀번호가 올바르지 않습니다"),
-    ).toBeVisible();
-  });
 });
 
 test.describe("프로필 수정 페이지", () => {
+  // 프로필 수정은 더미 게이트라 프로덕션(CI)에서는 404이고, 관리자 로그인이 필요하다. 로컬 개발 서버 전용
+  test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+  test.skip(!hasAdminSessionEnv(), "관리자 세션 주입용 환경 변수가 필요합니다");
+  test.beforeEach(async ({ context }) => loginAsAdmin(context));
+
   test("현재 프로필 값으로 채워져 열린다", async ({ page }) => {
     await page.goto("/profile/edit");
     await expect(page.getByLabel("표시 이름")).toHaveValue("관리자");

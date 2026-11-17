@@ -1,16 +1,19 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
+import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 
 // 상세·목록은 더미 데이터라 프로덕션(CI는 프로덕션 빌드)에서는 404다. 개발 서버에서만 검증한다.
 test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+test.skip(
+  !hasAdminSessionEnv(),
+  "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
+);
 
 const POST = "/posts/hello-blog";
 const DEV_LOG = "/dev-logs/devlog-01";
 
-/** 관리자 미리보기(dev-viewer 쿠키)를 켠다 */
+/** 관리자로 로그인한 상태로 만든다 */
 async function asAdmin(context: BrowserContext) {
-  await context.addCookies([
-    { name: "dev-viewer", value: "admin", url: "http://localhost:3100" },
-  ]);
+  await loginAsAdmin(context);
 }
 
 test.describe("게시글 상세", () => {

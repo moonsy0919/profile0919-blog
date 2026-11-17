@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 
 // 메인 본문은 더미 데이터라 프로덕션(CI는 프로덕션 빌드)에서는 임시 화면이다. 개발 서버에서만 검증한다.
 test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+test.skip(
+  !hasAdminSessionEnv(),
+  "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
+);
 
 const postSection = "section[aria-labelledby='post-list-heading']";
 const devLogSection = "section[aria-labelledby='dev-log-heading']";
@@ -75,7 +80,7 @@ test("개발 일기 영역은 최신 4개와 목록으로 가는 제목 링크�
   ).toHaveAttribute("href", "/dev-logs");
 });
 
-test("[게시]는 관리자 미리보기에서만 보인다", async ({ page, context }) => {
+test("[게시]는 관리자에게만 보인다", async ({ page, context }) => {
   await page.goto("/");
   await expect(
     page
@@ -83,9 +88,7 @@ test("[게시]는 관리자 미리보기에서만 보인다", async ({ page, con
       .getByRole("link", { name: "게시", exact: true }),
   ).toHaveCount(0);
 
-  await context.addCookies([
-    { name: "dev-viewer", value: "admin", url: "http://localhost:3100" },
-  ]);
+  await loginAsAdmin(context);
   await page.goto("/");
   await expect(
     page

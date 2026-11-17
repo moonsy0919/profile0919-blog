@@ -80,11 +80,9 @@ test("헤더는 main 밖에 있고 메뉴 네비게이션과 푸터가 없다", 
   await expect(page.getByRole("contentinfo")).toHaveCount(0);
 });
 
-test("프로필은 메인 헤더에만 있고 방문자 HTML에는 관리 버튼과 로그인이 없다", async ({
+test("프로필은 메인 헤더에만 있고 방문자 HTML에는 관리 버튼이 없다([로그인]만 보인다)", async ({
   page,
 }) => {
-  // 개발 서버(로컬)에서는 [로그인]과 뷰어 토글이 보이므로 프로덕션 빌드(CI)에서만 검증한다.
-  test.skip(!process.env.CI, "프로덕션 빌드에서만 검증");
   await page.goto("/");
   await expect(page.getByTestId("header-profile")).toBeVisible();
   await page.goto("/does-not-exist");
@@ -94,13 +92,8 @@ test("프로필은 메인 헤더에만 있고 방문자 HTML에는 관리 버튼
   const html = await (await page.request.get("/")).text();
   const headerHtml = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
   expect(headerHtml).not.toBe("");
-  for (const text of [
-    "로그인",
-    "작성",
-    "로그아웃",
-    "/posts/new",
-    "/profile/edit",
-  ]) {
+  expect(headerHtml).toContain("로그인");
+  for (const text of ["작성", "로그아웃", "/posts/new", "/profile/edit"]) {
     expect(headerHtml).not.toContain(text);
   }
 });
