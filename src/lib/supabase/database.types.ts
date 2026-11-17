@@ -54,6 +54,114 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_ip_attempts: {
+        Row: {
+          blocked_at: string | null
+          consecutive_failures: number
+          created_at: string
+          ip: string
+          last_failed_at: string | null
+        }
+        Insert: {
+          blocked_at?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          ip: string
+          last_failed_at?: string | null
+        }
+        Update: {
+          blocked_at?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          ip?: string
+          last_failed_at?: string | null
+        }
+        Relationships: []
+      }
+      admin_login_challenges: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      admin_trusted_ips: {
+        Row: {
+          created_at: string
+          ip: string
+          last_used_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ip: string
+          last_used_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ip?: string
+          last_used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      admin_verified_sessions: {
+        Row: {
+          expires_at: string
+          ip: string
+          session_id: string
+          user_id: string
+          verified_at: string
+          verified_via: string
+        }
+        Insert: {
+          expires_at: string
+          ip: string
+          session_id: string
+          user_id: string
+          verified_at?: string
+          verified_via: string
+        }
+        Update: {
+          expires_at?: string
+          ip?: string
+          session_id?: string
+          user_id?: string
+          verified_at?: string
+          verified_via?: string
+        }
+        Relationships: []
+      }
       dev_log_tags: {
         Row: {
           dev_log_id: string
@@ -244,6 +352,13 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      register_login_failure: {
+        Args: { p_ip: string; p_limit?: number }
+        Returns: {
+          blocked: boolean
+          newly_blocked: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
