@@ -3,7 +3,7 @@ import { WeatherCredit } from "@/components/weather-header/weather-credit";
 import { WeatherInfo } from "@/components/weather-header/weather-info";
 import { WeatherScene } from "@/components/weather-header/weather-scene";
 import { getProfile, getViewer } from "@/lib/data";
-import { isDevViewerEnabled } from "@/lib/dev-viewer";
+import { isDevOnlyOpen } from "@/lib/dev-gate";
 import { resolveHeaderProfile, type HeaderProfile } from "@/lib/header-profile";
 
 export type { HeaderVariant };
@@ -16,7 +16,7 @@ async function loadHeaderProfile(
   variant: HeaderVariant,
 ): Promise<HeaderProfile | null> {
   if (variant !== "expanded") return null;
-  const profile = isDevViewerEnabled() ? await getProfile() : null;
+  const profile = isDevOnlyOpen() ? await getProfile() : null;
   return resolveHeaderProfile(profile);
 }
 
@@ -41,7 +41,6 @@ export async function Header({
       variant={variant}
       isAdmin={viewer.isAdmin}
       profile={profile}
-      devMode={isDevViewerEnabled()}
       Sky={expanded ? WeatherScene : undefined}
       skySlot={
         expanded ? (

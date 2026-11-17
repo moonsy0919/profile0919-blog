@@ -1,10 +1,5 @@
-import { cookies } from "next/headers";
-import {
-  DEV_VIEWER_ADMIN,
-  DEV_VIEWER_COOKIE,
-  isDevViewerEnabled,
-} from "@/lib/dev-viewer";
 import { PAGE_SIZE, POST_PAGE_SIZE, clampPage } from "@/lib/pagination";
+import { createClient } from "@/lib/supabase/server";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
 import { dummyProfile } from "./dummy/profile";
@@ -134,18 +129,18 @@ export async function getProfile(): Promise<Profile> {
 }
 
 /**
- * 더미 뷰어 상태를 정하는 단일 지점.
- * 프로덕션은 쿠키를 읽지 않고 방문자로 고정하며(정적 렌더링 유지), 개발에서만 쿠키로 관리자 미리보기를 켠다.
+ * 현재 보는 사람(방문자/관리자)을 조회한다.
+ * 쿠키의 세션을 getUser()로 Supabase에서 검증하고(getSession은 신뢰하지 않는다),
+ * 허용 목록(is_admin)에 있을 때만 관리자로 본다. 어느 단계든 실패하면 방문자다.
  */
-async function resolveDummyViewer(): Promise<Viewer> {
-  if (!isDevViewerEnabled()) return { isAdmin: false };
-  const cookieStore = await cookies();
-  return {
-    isAdmin: cookieStore.get(DEV_VIEWER_COOKIE)?.value === DEV_VIEWER_ADMIN,
-  };
-}
-
-/** 현재 보는 사람(방문자/관리자)을 조회한다 */
 export async function getViewer(): Promise<Viewer> {
-  return resolveDummyViewer();
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return { isAdmin: false };
+    const { data: isAdmin, error: rpcError } = await supabase.rpc("is_admin");
+    return { isAdmin: !rpcError && isAdmin === true };
+  } catch {
+    return { isAdmin: false };
+  }
 }

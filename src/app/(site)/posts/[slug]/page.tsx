@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { PostDetail } from "@/components/post-detail";
 import { PostForm } from "@/components/post-form";
 import { getPost, getTags, getViewer } from "@/lib/data";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { assertDevOnly } from "@/lib/dev-gate";
-import { buildDetailMetadata, isEditMode } from "@/lib/edit-mode";
+import {
+  buildDetailMetadata,
+  isEditMode,
+  isEditRequested,
+} from "@/lib/edit-mode";
 import {
   buildBackHref,
   buildEditHref,
@@ -42,8 +47,11 @@ export default async function PostDetailPage({
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const post = await getPost(slug);
   if (!post) notFound();
-  const viewer = await getViewer();
   const detailPath = `/posts/${post.slug}`;
+  const editHref = buildEditHref(detailPath, sp);
+  // 비관리자의 edit=1은 로그인으로 보내고, 로그인하면 같은 수정 모드(edit=1·tag·page 유지)로 돌아온다
+  if (isEditRequested(sp)) await requireAdmin(editHref);
+  const viewer = await getViewer();
 
   // 수정 모드는 서버에서 분기해 읽기 뷰의 버튼·링크가 DOM에 남지 않게 한다
   if (isEditMode(sp, viewer)) {
@@ -63,7 +71,7 @@ export default async function PostDetailPage({
       post={post}
       backHref={buildBackHref("/", sp)}
       isAdmin={viewer.isAdmin}
-      editHref={buildEditHref(detailPath, sp)}
+      editHref={editHref}
     />
   );
 }

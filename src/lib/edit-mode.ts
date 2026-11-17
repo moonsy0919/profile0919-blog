@@ -11,8 +11,9 @@ export function isEditRequested(searchParams: RawSearchParams): boolean {
 }
 
 /**
- * 수정 모드로 그릴지 판정한다. edit=1이고 관리자일 때만 true이며,
- * 비관리자의 edit=1은 읽기 모드로 처리한다(로그인 리디렉션은 Task 016의 requireAdmin).
+ * 수정 모드로 그릴지 판정한다. edit=1이고 관리자일 때만 true다.
+ * 페이지는 edit=1이면 먼저 requireAdmin으로 비관리자를 로그인으로 보내므로,
+ * 여기서 false가 되는 비관리자는 방어적으로 읽기 모드가 된다.
  * @param searchParams 상세 페이지가 받은 searchParams
  * @param viewer 현재 방문자 정보
  */

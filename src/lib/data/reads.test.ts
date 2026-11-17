@@ -11,14 +11,11 @@ import {
   getViewer,
 } from "@/lib/data";
 
-/** 모의 쿠키 저장소가 돌려줄 dev-viewer 값 */
-let mockCookieValue: string | undefined;
+const getUser = vi.fn();
+const rpc = vi.fn();
 
-vi.mock("next/headers", () => ({
-  cookies: async () => ({
-    get: () =>
-      mockCookieValue === undefined ? undefined : { value: mockCookieValue },
-  }),
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => ({ auth: { getUser }, rpc }),
 }));
 
 describe("getPosts", () => {
@@ -118,17 +115,26 @@ describe("getProfile / getViewer", () => {
     expect(profile.displayName.length).toBeGreaterThan(0);
   });
 
-  it("프로덕션에서는 쿠키를 읽지 않고 항상 방문자다", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    mockCookieValue = "admin";
+  it("로그인하지 않았으면 방문자다", async () => {
+    getUser.mockResolvedValue({ data: { user: null }, error: null });
     expect(await getViewer()).toEqual({ isAdmin: false });
-    vi.unstubAllEnvs();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("개발에서는 dev-viewer 쿠키가 admin일 때만 관리자다", async () => {
-    mockCookieValue = undefined;
+  it("로그인했어도 허용 목록 밖이면 방문자다", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    rpc.mockResolvedValue({ data: false, error: null });
     expect(await getViewer()).toEqual({ isAdmin: false });
-    mockCookieValue = "admin";
+  });
+
+  it("허용 목록 안이면 관리자다", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    rpc.mockResolvedValue({ data: true, error: null });
     expect(await getViewer()).toEqual({ isAdmin: true });
+  });
+
+  it("조회 중 오류가 나면 방문자로 폴백한다", async () => {
+    getUser.mockRejectedValue(new Error("network"));
+    expect(await getViewer()).toEqual({ isAdmin: false });
   });
 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { FormCardPage } from "@/components/form-card-page";
 import { ProfileForm } from "@/components/profile-form";
 import { getProfile } from "@/lib/data";
+import { requireAdmin } from "@/lib/auth/require-admin";
 import { assertDevOnly } from "@/lib/dev-gate";
 
 export const metadata: Metadata = {
@@ -12,10 +13,11 @@ export const metadata: Metadata = {
 /**
  * 프로필 수정(/profile/edit). 관리자 전용이다.
  * 게이트는 데이터 조회보다 먼저 확인하고, 현재 프로필을 폼 초기값으로 넘긴다.
- * 비관리자 리디렉션(/login?next=)은 Task 016에서 연결한다.
+ * 비관리자는 /login?next=/profile/edit로 보낸다.
  */
 export default async function ProfileEditPage() {
   assertDevOnly();
+  await requireAdmin("/profile/edit");
   const profile = await getProfile();
   return (
     <FormCardPage

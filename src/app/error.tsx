@@ -23,12 +23,7 @@ export default function Error({
 
   return (
     <>
-      <HeaderView
-        variant="compact"
-        isAdmin={false}
-        profile={null}
-        devMode={false}
-      />
+      <HeaderView variant="compact" isAdmin={false} profile={null} />
       <main id="main-content" className="flex-1">
         <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-24 text-center">
           <h1 className="text-3xl font-bold tracking-tight">

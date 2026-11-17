@@ -15,7 +15,6 @@ function renderHeader(overrides: Partial<HeaderViewProps> = {}) {
       variant="compact"
       isAdmin={false}
       profile={null}
-      devMode={false}
       {...overrides}
     />,
   );
@@ -42,21 +41,21 @@ describe("HeaderView", () => {
     expect(compact.container.querySelector("[data-header-slot]")).toBeNull();
   });
 
-  it("프로덕션 방문자에게는 관리 버튼과 [로그인]이 없다", () => {
+  it("방문자에게는 관리 버튼이 없다", () => {
     renderHeader();
-    for (const name of ["로그인", "작성", "프로필", "로그아웃"]) {
+    for (const name of ["작성", "프로필", "로그아웃"]) {
       expect(screen.queryByText(name)).toBeNull();
     }
   });
 
-  it("개발 방문자에게는 [로그인]만 보인다", () => {
-    renderHeader({ devMode: true });
+  it("방문자에게는 [로그인]만 보인다", () => {
+    renderHeader();
     expect(screen.getByRole("link", { name: "로그인" })).toBeTruthy();
     expect(screen.queryByText("작성")).toBeNull();
   });
 
   it("관리자에게는 [작성][프로필][로그아웃]이 보이고 [로그인]은 없다", () => {
-    renderHeader({ isAdmin: true, devMode: true });
+    renderHeader({ isAdmin: true });
     expect(
       screen.getByRole("link", { name: "작성" }).getAttribute("href"),
     ).toBe("/posts/new");
@@ -66,7 +65,7 @@ describe("HeaderView", () => {
     expect(
       (screen.getByRole("button", { name: "로그아웃" }) as HTMLButtonElement)
         .disabled,
-    ).toBe(true);
+    ).toBe(false);
     expect(screen.queryByText("로그인")).toBeNull();
   });
 

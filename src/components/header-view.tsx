@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
-import { DevViewerToggle } from "@/components/dev-viewer-toggle";
 import { HeaderActions } from "@/components/header-actions";
 import { ON_SKY_TEXT } from "@/components/on-sky";
 import { ProfileBadge } from "@/components/profile-badge";
@@ -23,8 +22,6 @@ export type HeaderViewProps = {
   isAdmin: boolean;
   /** 확장형에서만 전달한다. 압축형은 프로필을 표시하지 않는다 */
   profile: HeaderProfile | null;
-  /** 개발 전용 요소(미리보기 토글, 방문자 [로그인])를 보일지. 프로덕션은 false */
-  devMode: boolean;
   /**
    * 확장형에서 상단 바와 슬롯을 감싸 하늘을 깔아 주는 컴포넌트(날씨 하늘).
    * 날씨 코드가 압축형·오류 화면 번들에 섞이지 않도록 이 파일이 직접 가져오지 않고 바깥(Header)이 넘긴다.
@@ -39,13 +36,13 @@ function PlainSky({ children }: SkyProps) {
   return <div className="bg-slate-600 text-white">{children}</div>;
 }
 
-type TopBarProps = Pick<HeaderViewProps, "isAdmin" | "profile" | "devMode"> & {
+type TopBarProps = Pick<HeaderViewProps, "isAdmin" | "profile"> & {
   /** 하늘 위에 얹는 흰 글자 스타일로 그릴지 */
   onSky: boolean;
 };
 
 /** 상단 바: 좌 사이트명·테마 토글, 중앙 프로필(확장형만), 우 로그인 또는 관리 버튼 */
-function HeaderTopBar({ isAdmin, profile, devMode, onSky }: TopBarProps) {
+function HeaderTopBar({ isAdmin, profile, onSky }: TopBarProps) {
   return (
     <div
       className={cn(
@@ -71,8 +68,7 @@ function HeaderTopBar({ isAdmin, profile, devMode, onSky }: TopBarProps) {
       </div>
       <div>{profile && <ProfileBadge profile={profile} onSky={onSky} />}</div>
       <div className="flex items-center justify-end gap-2">
-        {devMode && <DevViewerToggle isAdmin={isAdmin} onSky={onSky} />}
-        <HeaderActions isAdmin={isAdmin} showLogin={devMode} onSky={onSky} />
+        <HeaderActions isAdmin={isAdmin} onSky={onSky} />
       </div>
     </div>
   );
@@ -87,7 +83,6 @@ export function HeaderView({
   variant,
   isAdmin,
   profile,
-  devMode,
   Sky = PlainSky,
   skySlot,
 }: HeaderViewProps) {
@@ -97,12 +92,7 @@ export function HeaderView({
         data-header-variant={variant}
         className="border-b border-border bg-background"
       >
-        <HeaderTopBar
-          isAdmin={isAdmin}
-          profile={profile}
-          devMode={devMode}
-          onSky={false}
-        />
+        <HeaderTopBar isAdmin={isAdmin} profile={profile} onSky={false} />
       </header>
     );
   }
@@ -110,12 +100,7 @@ export function HeaderView({
   return (
     <header data-header-variant={variant}>
       <Sky>
-        <HeaderTopBar
-          isAdmin={isAdmin}
-          profile={profile}
-          devMode={devMode}
-          onSky
-        />
+        <HeaderTopBar isAdmin={isAdmin} profile={profile} onSky />
         <div data-header-slot className={EXPANDED_SLOT_CLASS}>
           {skySlot}
         </div>
