@@ -84,7 +84,8 @@ test("공개 키로 직접 로그인해도 승인 전에는 관리자가 아니�
   expect(error).toBeNull();
   const { data } = await supabase.rpc("is_admin");
   expect(data).toBe(false);
-  await supabase.auth.signOut();
+  // 같은 계정의 다른 테스트 세션(병렬 실행)을 끊지 않도록 이 세션만 종료한다
+  await supabase.auth.signOut({ scope: "local" });
 });
 
 test.describe("로그인 폼 (가짜 IP로 격리)", () => {

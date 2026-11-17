@@ -9,6 +9,8 @@ const baseURL = `http://localhost:${port}`;
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // 로컬에서는 관리자 계정 1개를 공유하고 로그아웃이 그 계정의 모든 세션을 끊으므로 순차 실행한다.
+  workers: isCI ? undefined : 1,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   reporter: isCI ? "github" : "list",
