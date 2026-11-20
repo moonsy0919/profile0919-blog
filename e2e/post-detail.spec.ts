@@ -1,14 +1,19 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 
-// 상세·목록은 더미 데이터라 프로덕션(CI는 프로덕션 빌드)에서는 404다. 개발 서버에서만 검증한다.
-test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+// 게시글 상세는 Supabase 실데이터(시드 글)를, 개발 일기는 아직 더미를 쓴다. 수정 모드·삭제도 개발 환경 전용이다.
+// CI에는 Supabase 환경 변수가 없어 로컬 개발 서버에서만 검증한다.
+test.skip(
+  Boolean(process.env.CI),
+  "실데이터 읽기·더미 화면은 로컬 개발 서버 전용",
+);
 test.skip(
   !hasAdminSessionEnv(),
   "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
 );
 
-const POST = "/posts/hello-blog";
+const POST = "/posts/hello-world";
+const TAG = encodeURIComponent("개발");
 const DEV_LOG = "/dev-logs/devlog-01";
 
 /** 관리자로 로그인한 상태로 만든다 */
@@ -29,10 +34,11 @@ test.describe("게시글 상세", () => {
   });
 
   test("[목록으로]는 선택했던 태그도 복원한다", async ({ page }) => {
-    await page.goto("/?tag=React");
+    await page.goto(`/?tag=${TAG}`);
     await page.locator("article a[href^='/posts/']").first().click();
+    await expect(page).toHaveURL(new RegExp(`\\?tag=${TAG}$`));
     await page.getByRole("link", { name: "목록으로" }).click();
-    await expect(page).toHaveURL(/\/\?tag=React$/);
+    await expect(page).toHaveURL(`/?tag=${TAG}`);
   });
 
   test("직접 접근하면 [목록으로]는 기본 목록으로 간다", async ({ page }) => {
@@ -77,11 +83,11 @@ test.describe("수정 모드 전환", () => {
     context,
   }) => {
     await asAdmin(context);
-    await page.goto(`${POST}?tag=React&page=2`);
+    await page.goto(`${POST}?tag=Next.js&page=2`);
     await page.getByRole("link", { name: "수정" }).click();
 
     await expect(page).toHaveURL(
-      /\/posts\/hello-blog\?tag=React&page=2&edit=1$/,
+      /\/posts\/hello-world\?tag=Next\.js&page=2&edit=1$/,
     );
     await expect(
       page.getByRole("heading", { level: 1, name: "게시글 수정" }),
@@ -90,8 +96,8 @@ test.describe("수정 모드 전환", () => {
     await expect(page.getByRole("link", { name: "수정" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "삭제" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "취소" }).click();
-    await expect(page).toHaveURL(/\/posts\/hello-blog\?tag=React&page=2$/);
+    await page.getByRole("button", { name: "취소" }).click();
+    await expect(page).toHaveURL(/\/posts\/hello-world\?tag=Next\.js&page=2$/);
     await expect(page.getByRole("link", { name: "수정" })).toBeVisible();
   });
 
@@ -104,12 +110,13 @@ test.describe("수정 모드 전환", () => {
     );
   });
 
-  test("방문자의 edit=1은 읽기 모드로 보인다", async ({ page }) => {
-    await page.goto(`${POST}?edit=1`);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "블로그를 시작합니다" }),
-    ).toBeVisible();
-    await expect(page.getByRole("link", { name: "수정" })).toHaveCount(0);
+  test("방문자의 edit=1은 로그인으로 보내고 로그인하면 같은 수정 모드로 돌아온다", async ({
+    page,
+  }) => {
+    await page.goto(`${POST}?tag=Next.js&edit=1`);
+    await expect(page).toHaveURL(/\/login\?next=/);
+    const next = new URL(page.url()).searchParams.get("next");
+    expect(next).toBe(`${POST}?tag=Next.js&edit=1`);
   });
 
   test("없는 slug는 edit=1이어도 404다", async ({ page, context }) => {
@@ -150,21 +157,7 @@ test.describe("삭제 확인 다이얼로그", () => {
     await expect(page).toHaveURL(new RegExp(`${POST}$`));
   });
 
-  test("게시글 삭제를 확인하면 토스트를 띄우고 메인으로 이동한다", async ({
-    page,
-    context,
-  }) => {
-    await asAdmin(context);
-    await page.goto(POST);
-    await page.getByRole("button", { name: "삭제", exact: true }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: "삭제", exact: true })
-      .click();
-
-    await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText("글이 삭제되었습니다")).toBeVisible();
-  });
+  // 게시글 삭제 확인은 더미 deletePost가 실제 글 id를 모르므로 Task 021-D(실연동)에서 검증한다.
 
   test("개발 일기 삭제를 확인하면 /dev-logs로 이동한다", async ({
     page,

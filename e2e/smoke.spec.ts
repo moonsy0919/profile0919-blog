@@ -1,11 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-/** 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다). /login은 Task 016에서 열었으므로 제외한다 */
+/**
+ * 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다).
+ * /login은 Task 016, /posts/[slug] 읽기 모드는 Task 018에서 열었으므로 제외한다.
+ * 글 상세의 수정 모드(?edit=1)는 DB를 읽기 전에 404가 되므로 Supabase 없이도 검증된다.
+ */
 const gatedPaths = [
   "/dev-logs",
   "/dev-logs/1",
   "/dev-logs/new",
-  "/posts/hello",
+  "/posts/hello-world?edit=1",
   "/posts/new",
   "/profile/edit",
   "/weather-header",
@@ -87,7 +91,7 @@ test("프로필은 메인 헤더에만 있고 방문자 HTML에는 관리 버튼
   await page.goto("/does-not-exist");
   await expect(page.getByTestId("header-profile")).toHaveCount(0);
 
-  // 서버가 내려준 HTML 중 헤더 영역만 검사한다(본문의 임시 문구에도 "로그인"이 들어 있다).
+  // 서버가 내려준 HTML 중 헤더 영역만 검사한다(본문은 검사 대상이 아니다).
   const html = await (await page.request.get("/")).text();
   const headerHtml = html.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
   expect(headerHtml).not.toBe("");

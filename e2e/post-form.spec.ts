@@ -8,7 +8,7 @@ test.skip(
   "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
 );
 
-const POST = "/posts/hello-blog";
+const POST = "/posts/hello-world";
 const DEV_LOG = "/dev-logs/devlog-01";
 
 /** 관리자로 로그인한 상태로 만든다 */
@@ -60,11 +60,11 @@ test.describe("게시글 수정 모드", () => {
     page,
   }) => {
     await page.goto(`${POST}?edit=1`);
-    await expect(page.getByLabel("slug")).toHaveValue("hello-blog");
+    await expect(page.getByLabel("slug")).toHaveValue("hello-world");
     await expect(page.getByLabel("제목")).not.toHaveValue("");
     await expect(page.getByLabel("본문")).not.toHaveValue("");
     await page.getByLabel("slug").fill("renamed");
-    await expect(page.getByRole("status")).toContainText("/posts/hello-blog");
+    await expect(page.getByRole("status")).toContainText("/posts/hello-world");
   });
 
   test("[취소]는 edit만 제거하고 page를 유지한 읽기 모드로 돌아간다", async ({
@@ -72,7 +72,7 @@ test.describe("게시글 수정 모드", () => {
   }) => {
     await page.goto(`${POST}?page=2&edit=1`);
     await page.getByRole("button", { name: "취소" }).click();
-    await expect(page).toHaveURL(/\/posts\/hello-blog\?page=2$/);
+    await expect(page).toHaveURL(/\/posts\/hello-world\?page=2$/);
   });
 
   test("읽기 모드와 수정 모드의 컨테이너 폭·제목 위치가 같다", async ({
