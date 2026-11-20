@@ -34,15 +34,15 @@ npm run check       # lint + typecheck + test + build
 src/
 ├── app/                   # App Router 루트
 │   ├── layout.tsx         # 루트 레이아웃: 폰트, ThemeProvider, skip link, Toaster (헤더·main은 그룹 레이아웃이 렌더링)
-│   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 개발 환경에서는 게시글·개발 일기 영역을 각각 Suspense·SectionErrorBoundary로 감싸 렌더링하고, 프로덕션(isDevOnlyOpen false)에서는 MainPlaceholder를 HTTP 200으로 보여 준다(Task 018·019에서 게이트 해제)
-│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])·개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이고 `?edit=1`이면 수정 폼(Task 013), 작성 폼: posts/new(PostForm)·dev-logs/new(DevLogForm) (assertDevOnly 게이트), 폼 화면: login(LoginForm, 프로덕션에 열림 — 이미 로그인한 관리자는 `next`로 보냄)·profile/edit(ProfileForm, getProfile 값으로 초기화, assertDevOnly 게이트). 작성·프로필 수정 페이지와 상세 `?edit=1`은 `assertDevOnly()` 뒤에서 `requireAdmin`으로 비관리자를 `/login?next=`(edit=1·tag·page 포함)로 보낸다(Task 016)
+│   ├── (main)/            # 메인(/) — 확장형 헤더 (layout.tsx, page.tsx). 게시글 영역은 `profiles`·`posts` 실데이터(Task 018)로 프로덕션에도 열려 있고 Suspense·SectionErrorBoundary로 감싼다. 개발 일기 영역(더미)은 `isDevOnlyOpen()`일 때만 렌더하며 프로덕션에서는 Task 019까지 숨긴다
+│   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])는 `posts` 실데이터(Task 018)로 읽기 모드가 프로덕션에 열려 있고(없는 slug는 HTTP 404, 관리자 [수정]·[삭제]는 `isDevOnlyOpen()`일 때만 — Task 021에서 해제), 개발 일기 목록(dev-logs)·상세(dev-logs/[id])는 더미 데이터 화면이다. `?edit=1`이면 수정 폼(Task 013, 프로덕션에서는 `generateMetadata`·페이지 모두 `assertDevOnly()`로 404), 작성 폼: posts/new(PostForm)·dev-logs/new(DevLogForm) (assertDevOnly 게이트), 폼 화면: login(LoginForm, 프로덕션에 열림 — 이미 로그인한 관리자는 `next`로 보냄)·profile/edit(ProfileForm, getProfile 값으로 초기화, assertDevOnly 게이트). 작성·프로필 수정 페이지와 상세 `?edit=1`은 `assertDevOnly()` 뒤에서 `requireAdmin`으로 비관리자를 `/login?next=`(edit=1·tag·page 포함)로 보낸다(Task 016)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
 │   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
 │   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용, 압축형 헤더 포함)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
 │   ├── robots.ts          # /robots.txt
-│   ├── sitemap.ts         # /sitemap.xml (SITEMAP_PATHS 기반, 열린 경로만)
+│   ├── sitemap.ts         # /sitemap.xml (SITEMAP_PATHS의 열린 경로 + 공개 글 /posts/[slug]. `force-dynamic`이고 글 조회가 실패하면 정적 경로만 돌려준다. `?edit=1` 변형은 넣지 않는다)
 │   ├── icon.svg           # 파비콘
 │   └── globals.css        # TailwindCSS v4 진입점 + CSS 변수(라이트/다크 테마)
 ├── config/
@@ -71,11 +71,11 @@ src/
 │   ├── thumbnail-field.tsx # "use client" — 썸네일(16:9) 로컬 미리보기·선택·제거. 업로드는 Task 020~021
 │   ├── post-card.tsx      # 게시글 카드(Task 009) — 표시 전용, 테두리 없는 카드(썸네일·한 줄 제목·3줄 요약·날짜). 카드 전체가 `/posts/[slug]` 링크이고 buildDetailHref로 현재 tag/page를 쿼리에 전달. 메인의 PostListSection이 배치한다(Task 010)
 │   ├── dev-log-card.tsx   # 개발 일기 카드 — 제목 링크를 카드 전체로 확장(stretched link), GitHub 링크는 별도 앵커(z-10)로 중첩 방지, 태그 칩 3개 + "+n". 상세 링크는 page만 전달
-│   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current. 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
+│   ├── tag-sidebar.tsx    # 태그 사이드바 — "전체 보기 N" + 태그별 개수, aria-current(태그 이름은 대소문자 무시로 비교). 모바일(sm 미만)은 가로 스크롤 칩, 그 이상은 세로 목록(CSS 반응형)
 │   ├── pagination.tsx     # 번호·이전·다음. 첫·마지막 페이지의 이전/다음은 aria-disabled. 페이지가 1개 이하면 렌더하지 않음. `basePath` prop(기본 `/`)으로 `/dev-logs`에서도 사용
 │   ├── post-list-section.tsx # async 서버 컴포넌트 — 메인 게시글 영역(TagSidebar + PostCard 목록 + Pagination). 보정된 page를 카드·페이지 번호에 사용. 모바일 1열은 grid-cols-[minmax(0,1fr)] 필수(없으면 태그 칩이 페이지를 가로로 넘치게 함). post-list-empty.tsx는 빈 상태(태그 유무로 문구 분기, [전체 보기])
 │   ├── dev-log-section.tsx # async 서버 컴포넌트 — 메인 개발 일기 영역(최신 4개 그리드, 제목 링크(→ /dev-logs), 관리자만 [게시]를 서버에서 렌더링)
-│   ├── main-placeholder.tsx # 프로덕션 `/`의 임시 화면(게이트가 닫힌 동안). main-skeletons.tsx는 두 영역의 로딩 자리
+│   ├── main-skeletons.tsx # 메인 두 영역의 로딩 자리
 │   ├── section-error-boundary.tsx # "use client" — 한 영역의 오류를 그 영역 안에서만 처리하고 [다시 시도] 제공
 │   ├── thumbnail-image.tsx # "use client" — 카드 썸네일(16:9). 없거나 불러오기 실패 시 public/default-thumbnail.svg로 대체. 두 카드가 공유
 │   ├── weather-header/    # 날씨·시간 하늘(Task 004 이식, Task 008 통합). WeatherScene(장면 1회 계산·Context·루트 div) + SkyBackground(효과·글자 대비용 어둠 막) + WeatherInfo(시계·날씨) + WeatherCredit(Open-Meteo 출처), WeatherHeader(미리보기용 조합), 훅(use-now·use-weather·use-media-query·use-paused), contrast.ts(WCAG 대비·어둠 막 계산), Open-Meteo 응답 정규화·WMO 분류·장면/효과 계산, 단위 테스트 포함. 확장형 헤더에서만 쓰며 압축형·다른 페이지는 /api/weather를 호출하지 않는다
@@ -87,7 +87,7 @@ src/
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
-    ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts, `getProfile`·`getViewer`는 이미 실데이터. `getProfile`은 `Profile | null`을 돌려주며 예외를 던지지 않는다)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
+    ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(`getPosts`·`getPost`·`getTags`·`getTagCounts`는 reads-posts.ts의 실데이터: `published=true`·created_at/id 내림차순·6개/페이지는 count 후 `clampPage`로 보정, 태그 필터는 대소문자 무시, 표시용 태그 조인은 별칭(`filter:post_tags!inner`)으로 분리, 조회 실패는 예외를 던져 오류 경계가 처리한다("없음"은 null·빈 결과). reads-sitemap.ts의 `getSitemapPosts`는 쿠키 없는 익명 클라이언트. reads.ts의 `getDevLogs`·`getDevLog`는 Task 019까지 더미, `getProfile`·`getViewer`는 실데이터이며 `getProfile`은 `Profile | null`을 돌려주고 예외를 던지지 않는다)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
     ├── auth/              # 인증(Task 016·016B) — data 계층과 분리. actions.ts("use server")는 얇은 래퍼: `login`·`verifyLoginCode`·`resendLoginCode`·`cancelLoginCode`·`logout`이며 처리 중 예외는 "지금은 로그인을 처리할 수 없습니다" 결과로 바꾼다. 실제 흐름은 login-flow.ts: ① 차단 IP면 로직 없이 차단 안내 ② 비밀번호 로그인 ③ 허용 목록 확인(밖이면 즉시 signOut) ④ 신뢰 IP면 즉시 로그인(세션을 `admin_verified_sessions`에 승인 기록), 새 IP면 이메일 8자리 코드 단계. 실패(비밀번호·허용 목록·코드 오입력)는 IP별 연속 실패로 합산하고 5회면 차단(수동 해제, 새 차단 시 관리자에게 알림 메일). 모듈: client-ip.ts(IPv4 그대로·IPv6 /64 정규화, `x-forwarded-for` 첫 값 — Vercel 배포 전제), trusted-ip.ts(90일 미사용 만료), challenge.ts(코드 해시 저장·10분·1회용·5회 오입력 폐기·재발송 60초/시간당 5회), ip-attempts.ts(`register_login_failure` RPC), mailer.ts(Resend, 개발은 콘솔)·auth-mails.ts·notify.ts, admins.ts(서비스 키로 허용 목록 조회), login-step.ts(액션 결과→폼 결과). require-admin.ts: `requireAdmin(nextPath)`·`buildLoginHref`, safe-next.ts: `sanitizeNext`, constants.ts: 문구·한도. 관리자 판정은 `getViewer`(reads.ts, React `cache`로 한 요청 안에서 한 번만 실행)가 `getClaims()`(JWKS 비대칭 키로 서명을 로컬 검증 — 프록시도 같은 방식이라 요청마다 Supabase Auth를 왕복하지 않는다) + `is_admin()` RPC 한 번으로 하며, `is_admin()`은 허용 목록이면서 토큰의 `session_id`가 `admin_verified_sessions`에 승인·미만료로 기록된 세션일 때만 true다(비밀번호만 맞은 세션은 관리자가 아니다). 신뢰 IP·차단 해제는 앱 화면 없이 Supabase 대시보드에서 해당 행을 삭제한다(절차·비상 복구는 `docs/admin-auth-operations.md`). `src/lib/supabase/admin.ts`는 서비스 키(`SUPABASE_SERVICE_ROLE_KEY`) 서버 전용 클라이언트(`server-only`)로 위 보안 테이블만 다룬다
     ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 null·빈 값이면 siteConfig.profile로 폴백하고, 아바타 주소가 `/`(내부)·`https://`가 아니면 기본 이미지로 대체
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
