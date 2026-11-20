@@ -4,11 +4,13 @@ import { DevLogCard } from "@/components/dev-log-card";
 import { Pagination } from "@/components/pagination";
 import { buttonVariants } from "@/components/ui/button";
 import { getDevLogs, getViewer } from "@/lib/data";
+import { isDevOnlyOpen } from "@/lib/dev-gate";
 
 /**
  * 개발 일기 목록 페이지의 본문. 4개/페이지 카드 그리드와 하단 페이지 번호를 그린다.
  * 범위를 벗어난 page는 조회 결과의 보정된 값을 써서 카드 링크와 페이지 번호에 반영한다.
  * 관리자 여부는 서버에서 분기해 방문자 HTML에는 [게시] 버튼이 포함되지 않는다.
+ * [게시]가 가는 /dev-logs/new는 더미 액션이라 Task 022-C 전까지 개발 환경에서만 보인다.
  * @param page 요청한 페이지 번호
  */
 export async function DevLogListSection({ page }: { page: number }) {
@@ -34,7 +36,7 @@ export async function DevLogListSection({ page }: { page: number }) {
           </span>
           개발 일기
         </h1>
-        {viewer.isAdmin && (
+        {viewer.isAdmin && isDevOnlyOpen() && (
           <Link href="/dev-logs/new" className={buttonVariants({ size: "sm" })}>
             게시
           </Link>

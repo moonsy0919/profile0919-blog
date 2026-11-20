@@ -1,12 +1,10 @@
 import { Suspense } from "react";
 import { DevLogListSection } from "@/components/dev-log-list-section";
 import { DevLogSkeleton } from "@/components/main-skeletons";
-import { assertDevOnly } from "@/lib/dev-gate";
 import { parseListState, type RawSearchParams } from "@/lib/list-state";
 
 /**
- * 개발 일기 목록(/dev-logs). 4개/페이지이고 태그 필터는 없다.
- * 게이트는 Suspense 바깥에서 불러야 프로덕션에서 HTTP 404가 된다.
+ * 개발 일기 목록(/dev-logs). 실데이터이며 4개/페이지이고 태그 필터는 없다.
  * @param searchParams page 쿼리 (Next.js 16에서는 Promise)
  */
 export default async function DevLogsPage({
@@ -14,7 +12,6 @@ export default async function DevLogsPage({
 }: {
   searchParams: Promise<RawSearchParams>;
 }) {
-  assertDevOnly();
   const { page } = parseListState(await searchParams);
 
   return (

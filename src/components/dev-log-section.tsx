@@ -3,12 +3,14 @@ import Link from "next/link";
 import { DevLogCard } from "@/components/dev-log-card";
 import { buttonVariants } from "@/components/ui/button";
 import { getDevLogs, getViewer } from "@/lib/data";
+import { isDevOnlyOpen } from "@/lib/dev-gate";
 
 /**
  * 메인 하단의 개발 일기 영역. 최신 개발 일기를 최대 한 페이지(4개)만 그리드로 보여준다.
  * 영역 제목을 누르면 개발 일기 목록(/dev-logs)으로 이동한다.
  * 게시글 목록과 구분되도록 회색 패널 안에 아이콘 제목과 함께 담고, 카드는 테두리 있는 흰 카드로 둔다.
  * 관리자 여부는 서버에서 분기해 방문자 HTML에는 [게시] 버튼이 포함되지 않는다.
+ * [게시]가 가는 /dev-logs/new는 더미 액션이라 Task 022-C 전까지 개발 환경에서만 보인다.
  */
 export async function DevLogSection() {
   const [devLogs, viewer] = await Promise.all([
@@ -38,7 +40,7 @@ export async function DevLogSection() {
             />
           </Link>
         </h2>
-        {viewer.isAdmin && (
+        {viewer.isAdmin && isDevOnlyOpen() && (
           <Link href="/dev-logs/new" className={buttonVariants({ size: "sm" })}>
             게시
           </Link>
