@@ -50,7 +50,7 @@ function TagItem({
  * 모바일(sm 미만)에서는 가로 스크롤 칩 목록, 그 이상에서는 세로 목록이 된다.
  * 태그를 누르면 tag만 쿼리에 담고 page는 버려 1페이지로 돌아간다.
  * @param tagCounts 전체 글 개수와 태그별 개수
- * @param selectedTag 현재 선택된 태그 이름 (없으면 전체 보기)
+ * @param selectedTag 현재 선택된 태그 이름 (없으면 전체 보기). 조회가 대소문자를 무시하므로 강조도 대소문자를 무시하고 맞춘다
  */
 export function TagSidebar({
   tagCounts,
@@ -74,7 +74,7 @@ export function TagSidebar({
             href={`/${buildListQuery({ tag: tag.name })}`}
             label={tag.name}
             count={count}
-            current={tag.name === selectedTag}
+            current={tag.name.toLowerCase() === selectedTag?.toLowerCase()}
           />
         ))}
       </ul>

@@ -38,6 +38,6 @@ export const siteConfig = {
 
 /**
  * 사이트맵에 포함할 정적 경로. 프로덕션에서 열려 있는 경로만 넣는다.
- * /dev-logs는 더미 게이트가 풀리는 Task 018에서 추가한다. 글 상세 URL은 Task 017에서 DB 기반으로 추가한다.
+ * 글 상세 URL(/posts/[slug])은 sitemap.ts가 DB에서 읽어 덧붙인다. /dev-logs는 더미 게이트가 풀리는 Task 019에서 추가한다.
  */
 export const SITEMAP_PATHS = ["/"] as const;

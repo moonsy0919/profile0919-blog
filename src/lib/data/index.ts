@@ -9,11 +9,8 @@ export {
   POST_PAGE_SIZE,
   getDevLog,
   getDevLogs,
-  getPost,
-  getPosts,
   getProfile,
-  getTagCounts,
-  getTags,
   getViewer,
 } from "./reads";
+export { getPost, getPosts, getTagCounts, getTags } from "./reads-posts";
 export type * from "./types";

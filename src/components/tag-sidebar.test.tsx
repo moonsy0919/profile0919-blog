@@ -52,6 +52,12 @@ describe("TagSidebar", () => {
     expect(link(/next js/).getAttribute("aria-current")).toBeNull();
   });
 
+  it("URL의 태그가 대소문자만 달라도 해당 태그를 선택 상태로 보여준다", () => {
+    render(<TagSidebar tagCounts={tagCounts} selectedTag="REACT" />);
+    expect(link(/react/).getAttribute("aria-current")).toBe("true");
+    expect(link(/next js/).getAttribute("aria-current")).toBeNull();
+  });
+
   it("태그가 없으면 전체 보기만 보여준다", () => {
     render(<TagSidebar tagCounts={{ total: 0, tags: [] }} />);
     expect(screen.getAllByRole("link")).toHaveLength(1);
