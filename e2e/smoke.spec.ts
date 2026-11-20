@@ -2,13 +2,12 @@ import { expect, test } from "@playwright/test";
 
 /**
  * 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다).
- * /login은 Task 016, /posts/[slug] 읽기 모드는 Task 018에서 열었으므로 제외한다.
- * 글 상세의 수정 모드(?edit=1)는 DB를 읽기 전에 404가 되므로 Supabase 없이도 검증된다.
+ * /login은 Task 016, /posts/[slug]·/dev-logs·/dev-logs/[id] 읽기 모드는 Task 018·019에서 열었으므로 제외한다.
+ * 수정 모드(?edit=1)는 DB를 읽기 전에 404가 되므로 Supabase 없이도 검증된다.
  */
 const gatedPaths = [
-  "/dev-logs",
-  "/dev-logs/1",
   "/dev-logs/new",
+  "/dev-logs/05aa8f8a-6ae7-4fb2-ba57-c4983f7c5da3?edit=1",
   "/posts/hello-world?edit=1",
   "/posts/new",
   "/profile/edit",
@@ -169,10 +168,12 @@ test("robots.txt와 sitemap.xml을 제공하고 닫힌 경로는 사이트맵에
   for (const closedPath of [
     "/posts",
     "/login",
+    "/dev-logs/new",
     "/api/weather",
     "/weather-header",
   ]) {
-    expect(body).not.toContain(closedPath);
+    // 글·개발 일기 상세(/posts/<slug>)는 열려 있어 포함되므로 닫힌 경로 자체(<loc>의 끝)만 확인한다
+    expect(body).not.toMatch(new RegExp(`${closedPath}</loc>`));
   }
 });
 
@@ -188,6 +189,20 @@ test("/login은 공개되어 있고 로그인 폼이 보인다", async ({ page, 
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
   await expect(page.getByLabel("아이디(이메일)")).toBeVisible();
+});
+
+// DB와 무관하게 검증되는 개발 일기 읽기 경로. 실데이터 검증은 main-page·post-detail 스펙(로컬 전용)에서 한다.
+test("uuid 형식이 아닌 개발 일기 id는 DB 없이 HTTP 404다", async ({ page }) => {
+  const response = await page.goto("/dev-logs/1");
+  expect(response?.status()).toBe(404);
+  await expect(
+    page.getByRole("heading", { name: "페이지를 찾을 수 없습니다" }),
+  ).toBeVisible();
+});
+
+test("/dev-logs는 프로덕션에도 열려 있어 404가 아니다", async ({ request }) => {
+  const response = await request.get("/dev-logs");
+  expect(response.status()).not.toBe(404);
 });
 
 test.describe("더미 게이트 (프로덕션 빌드 전용)", () => {

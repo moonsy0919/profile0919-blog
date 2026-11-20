@@ -1,12 +1,10 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
+import { firstDevLogPath } from "./helpers/dev-log";
 
-// 게시글 상세는 Supabase 실데이터(시드 글)를, 개발 일기는 아직 더미를 쓴다. 수정 모드·삭제도 개발 환경 전용이다.
+// 게시글 상세(시드 글 7개)와 개발 일기 목록·상세(시드 5개)는 Supabase 실데이터를 읽는다. 수정 모드·삭제는 더미 액션이라 개발 환경 전용이다.
 // CI에는 Supabase 환경 변수가 없어 로컬 개발 서버에서만 검증한다.
-test.skip(
-  Boolean(process.env.CI),
-  "실데이터 읽기·더미 화면은 로컬 개발 서버 전용",
-);
+test.skip(Boolean(process.env.CI), "실데이터 읽기는 로컬 개발 서버 전용");
 test.skip(
   !hasAdminSessionEnv(),
   "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
@@ -14,7 +12,6 @@ test.skip(
 
 const POST = "/posts/hello-world";
 const TAG = encodeURIComponent("개발");
-const DEV_LOG = "/dev-logs/devlog-01";
 
 /** 관리자로 로그인한 상태로 만든다 */
 async function asAdmin(context: BrowserContext) {
@@ -159,20 +156,7 @@ test.describe("삭제 확인 다이얼로그", () => {
 
   // 게시글 삭제 확인은 더미 deletePost가 실제 글 id를 모르므로 Task 021-D(실연동)에서 검증한다.
 
-  test("개발 일기 삭제를 확인하면 /dev-logs로 이동한다", async ({
-    page,
-    context,
-  }) => {
-    await asAdmin(context);
-    await page.goto(DEV_LOG);
-    await page.getByRole("button", { name: "삭제", exact: true }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("개발 일기를 삭제할까요?")).toBeVisible();
-    await dialog.getByRole("button", { name: "삭제", exact: true }).click();
-
-    await expect(page).toHaveURL(/\/dev-logs$/);
-    await expect(page.getByText("개발 일기가 삭제되었습니다")).toBeVisible();
-  });
+  // 개발 일기 삭제 확인은 더미 deleteDevLog가 실제 글 id를 모르므로 Task 022-D(실연동)에서 검증한다.
 });
 
 test.describe("개발 일기 목록", () => {
@@ -219,26 +203,39 @@ test.describe("개발 일기 상세", () => {
   }) => {
     await page.goto("/dev-logs?page=2");
     await page.locator("article a[href^='/dev-logs/']").first().click();
-    await expect(page).toHaveURL(/\/dev-logs\/devlog-\d+\?page=2$/);
+    await expect(page).toHaveURL(/\/dev-logs\/[0-9a-f-]{36}\?page=2$/);
 
     await page.getByRole("link", { name: "목록으로" }).click();
     await expect(page).toHaveURL(/\/dev-logs\?page=2$/);
   });
 
   test("GitHub 링크는 새 탭으로 열리도록 표시된다", async ({ page }) => {
-    await page.goto(DEV_LOG);
+    // 최신 글(1페이지 첫 카드)이 GitHub 주소를 가진 시드다
+    await page.goto(await firstDevLogPath(page));
     const link = page.getByRole("link", { name: "GitHub 저장소 열기" });
     await expect(link).toHaveAttribute("target", "_blank");
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  test("없는 id는 HTTP 404다", async ({ page }) => {
-    const response = await page.goto("/dev-logs/없는-id");
-    expect(response?.status()).toBe(404);
+  test("없는 id와 uuid가 아닌 id는 HTTP 404다", async ({ page }) => {
+    for (const id of ["00000000-0000-4000-8000-000000000000", "없는-id"]) {
+      const response = await page.goto(`/dev-logs/${id}`);
+      expect(response?.status()).toBe(404);
+    }
+  });
+
+  test("상세에 태그 칩이 표시된다(필터 링크 없는 표시 전용)", async ({
+    page,
+  }) => {
+    await page.goto(await firstDevLogPath(page));
+    // 최신 시드 글은 태그 3개(개발·Next.js·Supabase)가 붙어 있다
+    for (const tag of ["개발", "Next.js", "Supabase"]) {
+      await expect(page.getByText(tag, { exact: true })).toBeVisible();
+    }
   });
 
   test("방문자에게는 [수정]/[삭제]가 없다", async ({ page }) => {
-    await page.goto(DEV_LOG);
+    await page.goto(await firstDevLogPath(page));
     await expect(page.getByRole("link", { name: "수정" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "삭제" })).toHaveCount(0);
   });

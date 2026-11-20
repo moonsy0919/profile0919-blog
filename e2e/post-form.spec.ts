@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
+import { firstDevLogPath } from "./helpers/dev-log";
 
 // 작성·수정 폼은 더미 게이트라 프로덕션(CI는 프로덕션 빌드)에서는 404다. 개발 서버에서만 검증한다.
 test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
@@ -9,7 +10,6 @@ test.skip(
 );
 
 const POST = "/posts/hello-world";
-const DEV_LOG = "/dev-logs/devlog-01";
 
 /** 관리자로 로그인한 상태로 만든다 */
 async function asAdmin(context: BrowserContext) {
@@ -56,9 +56,11 @@ test.describe("개발 일기 게시·수정", () => {
     context,
   }) => {
     await asAdmin(context);
-    await page.goto(`${DEV_LOG}?page=2&edit=1`);
+    // 2페이지의 글(시드 5개 중 마지막)을 실데이터에서 찾아 연다
+    const devLog = await firstDevLogPath(page, "/dev-logs?page=2");
+    await page.goto(`${devLog}?page=2&edit=1`);
     await expect(page.getByLabel("제목")).not.toHaveValue("");
     await page.getByRole("button", { name: "취소" }).click();
-    await expect(page).toHaveURL(/\/dev-logs\/devlog-01\?page=2$/);
+    await expect(page).toHaveURL(new RegExp(`${devLog}\\?page=2$`));
   });
 });

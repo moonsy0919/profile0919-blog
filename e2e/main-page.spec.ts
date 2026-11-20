@@ -1,12 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 
-// 게시글 영역은 Supabase 실데이터(시드 글 7개·태그 4개)를 읽고, 개발 일기 영역은 아직 더미라 개발 서버에서만 보인다.
+// 게시글(시드 글 7개·태그 4개)과 개발 일기(시드 5개) 영역 모두 Supabase 실데이터를 읽는다.
 // CI에는 Supabase 환경 변수가 없어 실데이터를 읽을 수 없으므로 로컬 전용으로 둔다.
-test.skip(
-  Boolean(process.env.CI),
-  "실데이터 읽기·더미 화면은 로컬 개발 서버 전용",
-);
+test.skip(Boolean(process.env.CI), "실데이터 읽기는 로컬 개발 서버 전용");
 test.skip(
   !hasAdminSessionEnv(),
   "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",
