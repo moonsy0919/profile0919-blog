@@ -51,7 +51,7 @@ src/
 │   └── weather.ts         # weatherConfig — 날씨 조회 지점(서울 도시명·좌표·타임존). 정적 값만 두어 클라이언트 컴포넌트도 가져다 쓴다(siteConfig는 환경 변수에 의존하므로 클라이언트에서 직접 import하지 않는다)
 ├── components/
 │   ├── ui/                # shadcn/ui 컴포넌트 (직접 수정 가능, Prettier 제외)
-│   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만) 조회 후 HeaderView에 전달. 확장형에만 WeatherScene·WeatherInfo·WeatherCredit(날씨 코드)를 넘겨 압축형·error.tsx 번들에 섞이지 않게 한다
+│   ├── header.tsx         # async 서버 컴포넌트 — getViewer·getProfile(확장형만, `profiles` 실데이터 — 행이 없거나 조회 실패면 null → 기본값 폴백) 조회 후 HeaderView에 전달. 확장형에만 WeatherScene·WeatherInfo·WeatherCredit(날씨 코드)를 넘겨 압축형·error.tsx 번들에 섞이지 않게 한다
 │   ├── header-view.tsx    # 표시 전용 헤더(동기, error.tsx 같은 클라이언트에서도 사용). 확장형은 header 1개 안에서 Sky(하늘) 위에 상단 바를 흰 글자(on-sky)로 얹고 아래 슬롯(data-header-slot, min-h-[136px])에 정보 영역을 둔다. 중앙 프로필은 확장형만
 │   ├── header-actions.tsx # 우측 버튼: 방문자 [로그인] / 관리자 [작성][프로필][로그아웃](logout 서버 액션 폼). 방문자 HTML에는 관리 버튼이 생성되지 않음
 │   ├── profile-badge.tsx  # 헤더 중앙 프로필(이미지+이름). 메인 확장형에서만 사용
@@ -87,9 +87,9 @@ src/
 │   ├── theme-provider.tsx # "use client" — next-themes 래퍼
 │   └── theme-toggle.tsx   # "use client" — 다크/라이트 전환 버튼
 └── lib/
-    ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
+    ├── data/              # 데이터 접근 계층(Task 005) — 더미 → 실데이터 교체는 이 폴더 안에서만 한다. 타입(types.ts)·읽기 함수 8개(reads.ts, `getProfile`·`getViewer`는 이미 실데이터. `getProfile`은 `Profile | null`을 돌려주며 예외를 던지지 않는다)·더미 데이터(dummy/)는 `@/lib/data`로, 쓰기 서버 액션 8개(actions.ts, "use server")는 `@/lib/data/actions`로 import(서버 액션 파일은 async 함수만 export 가능해 re-export 불가). `dummy/`는 계층 밖에서 직접 import하지 않는다. 액션은 `{ok:true,data} | {ok:false,error:{code,message,fieldErrors?}}`를 반환하고 예외를 던지지 않는다
     ├── auth/              # 인증(Task 016·016B) — data 계층과 분리. actions.ts("use server")는 얇은 래퍼: `login`·`verifyLoginCode`·`resendLoginCode`·`cancelLoginCode`·`logout`이며 처리 중 예외는 "지금은 로그인을 처리할 수 없습니다" 결과로 바꾼다. 실제 흐름은 login-flow.ts: ① 차단 IP면 로직 없이 차단 안내 ② 비밀번호 로그인 ③ 허용 목록 확인(밖이면 즉시 signOut) ④ 신뢰 IP면 즉시 로그인(세션을 `admin_verified_sessions`에 승인 기록), 새 IP면 이메일 8자리 코드 단계. 실패(비밀번호·허용 목록·코드 오입력)는 IP별 연속 실패로 합산하고 5회면 차단(수동 해제, 새 차단 시 관리자에게 알림 메일). 모듈: client-ip.ts(IPv4 그대로·IPv6 /64 정규화, `x-forwarded-for` 첫 값 — Vercel 배포 전제), trusted-ip.ts(90일 미사용 만료), challenge.ts(코드 해시 저장·10분·1회용·5회 오입력 폐기·재발송 60초/시간당 5회), ip-attempts.ts(`register_login_failure` RPC), mailer.ts(Resend, 개발은 콘솔)·auth-mails.ts·notify.ts, admins.ts(서비스 키로 허용 목록 조회), login-step.ts(액션 결과→폼 결과). require-admin.ts: `requireAdmin(nextPath)`·`buildLoginHref`, safe-next.ts: `sanitizeNext`, constants.ts: 문구·한도. 관리자 판정은 `getViewer`(reads.ts, React `cache`로 한 요청 안에서 한 번만 실행)가 `getClaims()`(JWKS 비대칭 키로 서명을 로컬 검증 — 프록시도 같은 방식이라 요청마다 Supabase Auth를 왕복하지 않는다) + `is_admin()` RPC 한 번으로 하며, `is_admin()`은 허용 목록이면서 토큰의 `session_id`가 `admin_verified_sessions`에 승인·미만료로 기록된 세션일 때만 true다(비밀번호만 맞은 세션은 관리자가 아니다). 신뢰 IP·차단 해제는 앱 화면 없이 Supabase 대시보드에서 해당 행을 삭제한다(절차·비상 복구는 `docs/admin-auth-operations.md`). `src/lib/supabase/admin.ts`는 서비스 키(`SUPABASE_SERVICE_ROLE_KEY`) 서버 전용 클라이언트(`server-only`)로 위 보안 테이블만 다룬다
-    ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 비면 siteConfig.profile로 폴백
+    ├── header-profile.ts  # resolveHeaderProfile() — DB 프로필이 null·빈 값이면 siteConfig.profile로 폴백하고, 아바타 주소가 `/`(내부)·`https://`가 아니면 기본 이미지로 대체
     ├── dev-gate.ts        # assertDevOnly() — 더미 기반 경로를 프로덕션에서 notFound()로 닫는 게이트. isDevOnlyOpen() — 404가 아니라 화면을 나눠야 하는 경로(/)용 불리언 판정
     ├── use-unsaved-changes.ts # useUnsavedChanges(dirty) — 변경이 있을 때만 beforeunload 등록. use-image-picker.ts — 이미지(프로필·썸네일) 선택·로컬 미리보기(objectURL 해제 포함). use-editor-fields.ts — 게시글·개발 일기 폼의 공통 필드·dirty·제출 상태
     ├── pagination.ts      # PAGE_SIZE(4, 개발 일기)·POST_PAGE_SIZE(6, 게시글)와 clampPage() — 페이지 번호 보정. `@/lib/data`가 두 상수를 re-export. getPageWindow() — Pagination이 쓰는 번호 목록(첫·마지막 + 현재 앞뒤, 빈 구간은 "ellipsis")

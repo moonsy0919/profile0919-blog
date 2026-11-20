@@ -82,3 +82,34 @@ test("날씨 API가 502여도 헤더와 프로필은 시간대만 반영해 보�
   await expect(page.getByText(/서울/)).toHaveCount(0);
   await expect(page.locator("header")).toHaveCount(1);
 });
+
+test("날씨 API 연결이 끊겨도 프로필과 헤더는 정상으로 보인다", async ({
+  page,
+}) => {
+  await setSeoulTime(page, new Date("2026-10-20T03:00:00Z"));
+  await page.route("**/api/weather", (route) => route.abort("failed"));
+  await page.goto("/");
+
+  await expect(page.locator("[data-time]")).toHaveAttribute(
+    "data-time",
+    "noon",
+  );
+  await expect(page.getByTestId("header-profile")).toBeVisible();
+  await expect(page.locator("header")).toHaveCount(1);
+});
+
+test("날씨 API 응답이 오지 않아도 프로필과 헤더 렌더가 막히지 않는다", async ({
+  page,
+}) => {
+  await setSeoulTime(page, new Date("2026-10-20T03:00:00Z"));
+  // 응답을 보내지 않고 붙잡아 두어 무한 지연을 흉내 낸다
+  await page.route("**/api/weather", () => new Promise(() => {}));
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByTestId("header-profile")).toBeVisible();
+  await expect(page.locator("header")).toHaveCount(1);
+  await expect(page.locator("[data-time]")).toHaveAttribute(
+    "data-time",
+    "noon",
+  );
+});

@@ -3,21 +3,19 @@ import { WeatherCredit } from "@/components/weather-header/weather-credit";
 import { WeatherInfo } from "@/components/weather-header/weather-info";
 import { WeatherScene } from "@/components/weather-header/weather-scene";
 import { getProfile, getViewer } from "@/lib/data";
-import { isDevOnlyOpen } from "@/lib/dev-gate";
 import { resolveHeaderProfile, type HeaderProfile } from "@/lib/header-profile";
 
 export type { HeaderVariant };
 
 /**
  * 헤더에 표시할 프로필을 조회한다. 프로필은 확장형에서만 쓰므로 압축형은 조회하지 않는다.
- * 프로덕션은 더미 프로필을 노출하지 않도록 DB를 쓰기 전까지 siteConfig 기본값만 쓴다.
+ * DB(profiles) 값을 쓰고, 행이 없거나 조회에 실패하면 siteConfig 기본값으로 대체한다.
  */
 async function loadHeaderProfile(
   variant: HeaderVariant,
 ): Promise<HeaderProfile | null> {
   if (variant !== "expanded") return null;
-  const profile = isDevOnlyOpen() ? await getProfile() : null;
-  return resolveHeaderProfile(profile);
+  return resolveHeaderProfile(await getProfile());
 }
 
 /**

@@ -19,4 +19,26 @@ describe("resolveHeaderProfile", () => {
     const profile = { id: "1", displayName: "   ", avatarUrl: null };
     expect(resolveHeaderProfile(profile)).toEqual(siteConfig.profile);
   });
+
+  it("내부 경로와 https 이미지는 그대로 쓴다", () => {
+    for (const avatarUrl of ["/uploads/me.png", "https://example.com/a.png"]) {
+      const profile = { id: "1", displayName: "홍길동", avatarUrl };
+      expect(resolveHeaderProfile(profile).avatarUrl).toBe(avatarUrl);
+    }
+  });
+
+  it("안전하지 않은 이미지 주소는 기본 이미지로 대체한다", () => {
+    const unsafe = [
+      "javascript:alert(1)",
+      "http://example.com/a.png",
+      "//evil.com/a.png",
+      "   ",
+    ];
+    for (const avatarUrl of unsafe) {
+      const profile = { id: "1", displayName: "홍길동", avatarUrl };
+      expect(resolveHeaderProfile(profile).avatarUrl).toBe(
+        siteConfig.profile.avatarUrl,
+      );
+    }
+  });
 });

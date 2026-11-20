@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import { FormCardPage } from "@/components/form-card-page";
 import { ProfileForm } from "@/components/profile-form";
-import { getProfile } from "@/lib/data";
+import { profileConfig } from "@/config/profile";
+import { getProfile, type Profile } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { assertDevOnly } from "@/lib/dev-gate";
 
 export const metadata: Metadata = {
   title: "프로필 수정",
   robots: { index: false },
+};
+
+/** 프로필 행이 아직 없을 때 폼에 넘기는 초기값(이미지는 기본 이미지 상태) */
+const emptyProfile: Profile = {
+  id: "",
+  displayName: profileConfig.displayName,
+  avatarUrl: null,
 };
 
 /**
@@ -18,7 +26,7 @@ export const metadata: Metadata = {
 export default async function ProfileEditPage() {
   assertDevOnly();
   await requireAdmin("/profile/edit");
-  const profile = await getProfile();
+  const profile = (await getProfile()) ?? emptyProfile;
   return (
     <FormCardPage
       title="프로필 수정"

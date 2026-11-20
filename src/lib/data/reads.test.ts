@@ -13,9 +13,15 @@ import {
 
 const getClaims = vi.fn();
 const rpc = vi.fn();
+const maybeSingle = vi.fn();
+const from = vi.fn(() => ({
+  select: () => ({
+    order: () => ({ limit: () => ({ maybeSingle }) }),
+  }),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getClaims }, rpc }),
+  createClient: async () => ({ auth: { getClaims }, rpc, from }),
 }));
 
 describe("getPosts", () => {
@@ -110,9 +116,37 @@ describe("getDevLogs / getDevLog", () => {
 });
 
 describe("getProfile / getViewer", () => {
-  it("프로필을 돌려준다", async () => {
-    const profile = await getProfile();
-    expect(profile.displayName.length).toBeGreaterThan(0);
+  it("profiles 행을 도메인 프로필로 바꿔 돌려준다", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { id: "u1", display_name: "홍길동", avatar_url: "/a.png" },
+      error: null,
+    });
+    expect(await getProfile()).toEqual({
+      id: "u1",
+      displayName: "홍길동",
+      avatarUrl: "/a.png",
+    });
+    expect(from).toHaveBeenCalledWith("profiles");
+  });
+
+  it("아바타가 없으면 avatarUrl은 null이다", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { id: "u1", display_name: "홍길동", avatar_url: null },
+      error: null,
+    });
+    expect((await getProfile())?.avatarUrl).toBeNull();
+  });
+
+  it("행이 없으면 null이다", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    expect(await getProfile()).toBeNull();
+  });
+
+  it("조회 오류나 예외는 던지지 않고 null이다", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: { message: "boom" } });
+    expect(await getProfile()).toBeNull();
+    maybeSingle.mockRejectedValue(new Error("network"));
+    expect(await getProfile()).toBeNull();
   });
 
   it("로그인하지 않았으면 방문자이고 DB를 부르지 않는다", async () => {

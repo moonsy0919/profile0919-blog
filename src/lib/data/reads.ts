@@ -3,7 +3,6 @@ import { PAGE_SIZE, POST_PAGE_SIZE, clampPage } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
-import { dummyProfile } from "./dummy/profile";
 import { dummyTags } from "./dummy/tags";
 import type {
   DevLog,
@@ -124,10 +123,31 @@ export async function getDevLog(id: string): Promise<DevLog | null> {
   return dummyDevLogs.find((devLog) => devLog.id === id) ?? null;
 }
 
-/** 헤더 중앙에 표시할 프로필을 조회한다 */
-export async function getProfile(): Promise<Profile> {
-  return dummyProfile;
-}
+/**
+ * 헤더 중앙에 표시할 프로필을 조회한다(SELECT 공개라 방문자도 조회 가능).
+ * 관리자는 1명이라 가장 먼저 만든 행 하나만 쓴다. 행이 없거나 조회에 실패하면
+ * 예외 없이 null을 돌려주어 헤더가 기본값으로 대체되게 한다.
+ * React cache로 감싸 한 요청 안에서 여러 번 불러도 DB 호출은 한 번만 한다.
+ */
+export const getProfile = cache(async (): Promise<Profile | null> => {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      id: data.id,
+      displayName: data.display_name,
+      avatarUrl: data.avatar_url,
+    };
+  } catch {
+    return null;
+  }
+});
 
 /**
  * 현재 보는 사람(방문자/관리자)을 조회한다.
