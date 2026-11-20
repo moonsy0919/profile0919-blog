@@ -47,15 +47,17 @@ test("태그를 누르면 해당 태그 글만 보이고 page 쿼리는 사라�
 
 test("사이드바의 태그별 개수와 필터 결과가 일치한다", async ({ page }) => {
   await page.goto("/");
-  const entries = await page
+  const tagLinks = page
     .getByRole("navigation", { name: "태그" })
-    .getByRole("link")
-    .evaluateAll((links) =>
-      links.map((a) => ({
-        href: a.getAttribute("href") ?? "",
-        count: Number(a.textContent?.match(/(\d+)$/)?.[1]),
-      })),
-    );
+    .getByRole("link");
+  // 사이드바는 DB 조회 뒤에 스트리밍으로 그려지므로 보일 때까지 기다린 뒤 읽는다(evaluateAll은 자동 대기하지 않는다)
+  await expect(tagLinks.first()).toBeVisible();
+  const entries = await tagLinks.evaluateAll((links) =>
+    links.map((a) => ({
+      href: a.getAttribute("href") ?? "",
+      count: Number(a.textContent?.match(/(\d+)$/)?.[1]),
+    })),
+  );
   expect(entries.length).toBeGreaterThan(1);
 
   for (const { href, count } of entries) {

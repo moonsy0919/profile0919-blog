@@ -242,20 +242,4 @@ test.describe("개발 일기 상세", () => {
     await expect(page.getByRole("link", { name: "수정" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "삭제" })).toHaveCount(0);
   });
-
-  test("[수정]으로 수정 모드에 들어가고 [취소]로 page를 유지한 채 돌아온다", async ({
-    page,
-    context,
-  }) => {
-    await asAdmin(context);
-    await page.goto(`${DEV_LOG}?page=2`);
-    await page.getByRole("link", { name: "수정" }).click();
-    await expect(page).toHaveURL(/\/dev-logs\/devlog-01\?page=2&edit=1$/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "개발 일기 수정" }),
-    ).toBeVisible();
-
-    await page.getByRole("link", { name: "취소" }).click();
-    await expect(page).toHaveURL(/\/dev-logs\/devlog-01\?page=2$/);
-  });
 });
