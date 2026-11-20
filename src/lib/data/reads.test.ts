@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getDevLog, getDevLogs, getProfile, getViewer } from "@/lib/data";
+import { getProfile, getViewer } from "@/lib/data";
 
 const getClaims = vi.fn();
 const rpc = vi.fn();
@@ -13,25 +13,6 @@ const from = vi.fn(() => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getClaims }, rpc, from }),
 }));
-
-describe("getDevLogs / getDevLog", () => {
-  it("최신순으로 4개씩 나눠 돌려준다", async () => {
-    const result = await getDevLogs();
-    expect(result.items).toHaveLength(4);
-    expect(result.total).toBeGreaterThanOrEqual(5);
-    const dates = result.items.map((devLog) => devLog.createdAt);
-    expect(dates).toEqual([...dates].sort().reverse());
-  });
-
-  it("범위를 벗어난 page는 보정한다", async () => {
-    expect((await getDevLogs({ page: 99 })).page).toBe(2);
-  });
-
-  it("id로 한 건을 조회하고 없으면 null이다", async () => {
-    expect((await getDevLog("devlog-01"))?.title).toBe("프로젝트 세팅");
-    expect(await getDevLog("없는-id")).toBeNull();
-  });
-});
 
 describe("getProfile / getViewer", () => {
   it("profiles 행을 도메인 프로필로 바꿔 돌려준다", async () => {

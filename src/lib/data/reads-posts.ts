@@ -35,7 +35,7 @@ type PostRow = {
  * @param what 실패한 조회 설명
  * @param cause 원본 오류
  */
-function queryError(what: string, cause: unknown): Error {
+export function queryError(what: string, cause: unknown): Error {
   return new Error(`${what}에 실패했습니다`, { cause });
 }
 
