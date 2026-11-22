@@ -38,7 +38,7 @@ src/
 │   ├── (site)/            # 그 외 페이지 — 압축형 헤더. 게시글 상세(posts/[slug])는 `posts` 실데이터(Task 018)로 읽기 모드가 프로덕션에 열려 있고(없는 slug는 HTTP 404, 관리자 [수정]·[삭제]와 `?edit=1` 수정 모드는 `updatePost`·`deletePost` 실연동(Task 021-U·021-D)으로 프로덕션에도 열려 있고 비관리자의 `?edit=1`은 `/login?next=`로 보낸다), 개발 일기 목록(dev-logs)·상세(dev-logs/[id])도 `dev_logs` 실데이터(Task 019)로 읽기 모드가 프로덕션에 열려 있다(없는 id·uuid가 아닌 id는 HTTP 404, 관리자 [수정]·[삭제]는 `isDevOnlyOpen()`일 때만 — Task 022에서 해제). `?edit=1`이면 수정 폼(Task 013, 프로덕션에서는 `generateMetadata`·페이지 모두 `assertDevOnly()`로 404), 작성 폼: posts/new(PostForm — Task 021-C에서 프로덕션에 열림, `requireAdmin`만 거침)·dev-logs/new(DevLogForm, assertDevOnly 게이트), 폼 화면: login(LoginForm, 프로덕션에 열림 — 이미 로그인한 관리자는 `next`로 보냄)·profile/edit(ProfileForm, getProfile 값으로 초기화, assertDevOnly 게이트). 작성·프로필 수정 페이지와 상세 `?edit=1`은 `assertDevOnly()` 뒤에서 `requireAdmin`으로 비관리자를 `/login?next=`(edit=1·tag·page 포함)로 보낸다(Task 016)
 │   ├── (dev)/             # 개발 전용 — layout에서 assertDevOnly(), weather-header 미리보기(날씨 11종 × 시간대 6종 = 66개 조합)
 │   ├── api/weather/       # 공개 날씨 API (Route Handler). Open-Meteo 서울 고정, API 키 불필요, 30분 서버 캐시, 3초 타임아웃, 실패 시 502
-│   ├── not-found.tsx      # 404 페이지 (PageShell 압축형 헤더 포함)
+│   ├── not-found.tsx      # 일치하는 경로가 없는 URL의 404 페이지 (PageShell 압축형 헤더 포함 — 이 경로에는 그룹 레이아웃이 없다). 본문은 components/not-found-content.tsx를 공유한다. `(site)` 그룹 안에서 notFound()가 호출되는 경우(없는 글 slug·개발 일기 id, 프로덕션에서 닫힌 경로)는 `(site)/not-found.tsx`가 처리하며 본문만 그린다(헤더·main은 (site) 레이아웃이 이미 그리므로, 루트 404를 그대로 쓰면 헤더·main이 두 번 나온다)
 │   ├── error.tsx          # 세그먼트 오류 페이지 ("use client", retry prop 사용, 압축형 헤더 포함)
 │   ├── global-error.tsx   # 루트 레이아웃 오류 페이지 (html/body 직접 렌더링)
 │   ├── robots.ts          # /robots.txt
