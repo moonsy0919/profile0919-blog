@@ -5,7 +5,7 @@ import {
   loginAsAdmin,
 } from "./helpers/admin-session";
 
-// 작성 폼은 더미 게이트라 프로덕션(CI)에서는 404다. 실제 Storage·DB를 쓰므로 로컬 전용이다.
+// 실제 Storage·DB(운영 Supabase)를 쓰므로 로컬 전용이다.
 test.skip(Boolean(process.env.CI), "실데이터(Storage·태그)를 쓰므로 로컬 전용");
 test.skip(
   !hasAdminSessionEnv(),
@@ -103,6 +103,8 @@ test.afterEach(async () => {
   if (uploadedPaths.length > 0) {
     await service.storage.from("thumbnails").remove(uploadedPaths);
   }
+  // createPost가 실구현이라 저장 성공 테스트가 만든 글(post_tags는 cascade)도 지운다
+  await service.from("posts").delete().like("title", `${E2E_PREFIX}%`);
   await service.from("tags").delete().like("name", `${E2E_PREFIX}%`);
 });
 
@@ -135,8 +137,8 @@ test.describe("썸네일 직접 업로드", () => {
 
   test("저장이 실패하면 방금 올린 객체를 지운다", async ({ page }) => {
     trackUploads(page);
-    // 더미 createPost는 이미 쓰는 slug(hello-blog)면 conflict로 실패한다
-    await fillPostForm(page, "hello-blog");
+    // 실데이터에 이미 있는 slug(시드 글)면 createPost가 conflict로 실패한다
+    await fillPostForm(page, "hello-world");
 
     const upload = page.waitForResponse(
       (res) =>
