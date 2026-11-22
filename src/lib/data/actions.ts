@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { isBucketImageUrl } from "@/lib/storage/paths";
+import { removeBucketImage } from "@/lib/storage/remove-server";
 import { createClient } from "@/lib/supabase/server";
 import { zodErrorToFieldErrors } from "@/lib/validation/errors";
 import { tagNameSchema } from "@/lib/validation/fields";
 import { postFormSchema } from "@/lib/validation/post";
 import { dummyDevLogs } from "./dummy/devLogs";
-import { dummyPosts } from "./dummy/posts";
 import { getViewer } from "./reads";
 import type {
   ActionErrorCode,
@@ -24,7 +24,7 @@ import type {
 } from "./types";
 
 /*
- * 쓰기 서버 액션. `createTag`(Task 020)·`createPost`(021-C)·`updatePost`(021-U)만 실구현이고 나머지는 더미다.
+ * 쓰기 서버 액션. `createTag`(Task 020)·`createPost`(021-C)·`updatePost`(021-U)·`deletePost`(021-D)만 실구현이고 나머지는 더미다.
  * 더미는 데이터를 실제로 바꾸지 않고 시그니처와 반환 형태만 고정한다.
  * 관리자 재검증·Zod 검증·revalidatePath는 Task 006·016·021~023에서 이 파일 안에 채운다.
  * 프로덕션 보호는 이 함수를 부르는 더미 경로의 라우트 게이트(assertDevOnly)가 맡는다.
@@ -203,15 +203,62 @@ export async function updatePost(
   return result;
 }
 
+/** 글 삭제 결과 문구 */
+const POST_ALREADY_DELETED_MESSAGE = "이미 삭제된 글입니다.";
+const POST_DELETE_FAILED_MESSAGE = "삭제하지 못했습니다. 다시 시도해 주세요";
+
 /**
- * 게시글을 삭제한다. 이미 없으면 notFound다.
+ * `posts` 행을 지운다(`post_tags`는 on delete cascade). 사용자 세션이라 RLS가 적용된다.
+ * 삭제된 행이 없으면(조회 뒤 동시 삭제·권한 없음) 오류 없이 0행이므로 notFound로 본다.
+ * @param id 삭제할 글 id
+ */
+async function deletePostRecord(id: string): Promise<ActionResult<null>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("posts")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      console.error("게시글 삭제 실패", error);
+      return fail("unknown", POST_DELETE_FAILED_MESSAGE);
+    }
+    if (data.length === 0) {
+      return fail("notFound", POST_ALREADY_DELETED_MESSAGE);
+    }
+    return succeed(null);
+  } catch (error) {
+    console.error("게시글 삭제 중 예외", error);
+    return fail("unknown", POST_DELETE_FAILED_MESSAGE);
+  }
+}
+
+/**
+ * 게시글을 삭제한다. 관리자 재검증 → id 형식 → 삭제 전 글(slug·썸네일) 조회 → DB 삭제 → 캐시 재검증 → Storage 정리 순서다.
+ * DB 삭제 성공이 기준이라 Storage 정리가 실패해도 로그만 남기고 성공으로 돌려준다(고아 파일 허용).
+ * 이미 없으면(삭제됨 포함) notFound다.
  * @param id 삭제할 글 id
  */
 export async function deletePost(id: string): Promise<ActionResult<null>> {
-  if (!dummyPosts.some((post) => post.id === id)) {
-    return fail("notFound", "이미 삭제된 글입니다.");
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) return fail("forbidden", "권한이 없습니다.");
+  if (!UUID_PATTERN.test(id)) {
+    return fail("notFound", POST_ALREADY_DELETED_MESSAGE);
   }
-  return succeed(null);
+
+  const before = await readPostBefore(id);
+  if (!before.ok) {
+    return before.error.code === "notFound"
+      ? fail("notFound", POST_ALREADY_DELETED_MESSAGE)
+      : fail("unknown", POST_DELETE_FAILED_MESSAGE);
+  }
+  const result = await deletePostRecord(id);
+  if (!result.ok) return result;
+
+  revalidatePostPaths([before.data.slug]);
+  await removeBucketImage(before.data.thumbnailUrl, "posts");
+  return result;
 }
 
 /**

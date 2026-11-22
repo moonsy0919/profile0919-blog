@@ -1,24 +1,36 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getViewer, rpc, maybeSingle, createClient, revalidatePath } =
-  vi.hoisted(() => {
-    const rpc = vi.fn();
-    const maybeSingle = vi.fn();
-    // updatePost가 수정 전 글을 읽는 from().select().eq().maybeSingle() 체인
-    const from = vi.fn(() => ({
-      select: () => ({ eq: () => ({ maybeSingle }) }),
-    }));
-    return {
-      getViewer: vi.fn(),
-      rpc,
-      maybeSingle,
-      createClient: vi.fn(async () => ({ rpc, from })),
-      revalidatePath: vi.fn(),
-    };
-  });
+const {
+  getViewer,
+  rpc,
+  maybeSingle,
+  deleteSelect,
+  removeBucketImage,
+  createClient,
+  revalidatePath,
+} = vi.hoisted(() => {
+  const rpc = vi.fn();
+  const maybeSingle = vi.fn();
+  const deleteSelect = vi.fn();
+  // 수정·삭제 전 글을 읽는 from().select().eq().maybeSingle() 체인과 from().delete().eq().select() 체인
+  const from = vi.fn(() => ({
+    select: () => ({ eq: () => ({ maybeSingle }) }),
+    delete: () => ({ eq: () => ({ select: deleteSelect }) }),
+  }));
+  return {
+    getViewer: vi.fn(),
+    rpc,
+    maybeSingle,
+    deleteSelect,
+    removeBucketImage: vi.fn(),
+    createClient: vi.fn(async () => ({ rpc, from })),
+    revalidatePath: vi.fn(),
+  };
+});
 vi.mock("./reads", () => ({ getViewer }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("@/lib/storage/remove-server", () => ({ removeBucketImage }));
 
 import {
   createDevLog,
@@ -47,15 +59,6 @@ const devLogInput = {
   githubUrl: null,
   tagIds: [],
 };
-
-describe("게시글 액션", () => {
-  it("삭제는 있는 글이면 성공, 없으면 notFound다", async () => {
-    expect(await deletePost("post-01")).toEqual({ ok: true, data: null });
-    const missing = await deletePost("없는-id");
-    expect(missing.ok).toBe(false);
-    if (!missing.ok) expect(missing.error.code).toBe("notFound");
-  });
-});
 
 describe("createPost", () => {
   const savedRow = { id: "p-1", slug: "new-post" };
@@ -266,6 +269,92 @@ describe("updatePost", () => {
     expect((await failure()).code).toBe("unknown");
     maybeSingle.mockResolvedValue({ data: null, error: { code: "XX000" } });
     expect((await failure()).code).toBe("unknown");
+  });
+});
+
+describe("deletePost", () => {
+  const ID = "0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d";
+  const BUCKET =
+    "https://example.supabase.co/storage/v1/object/public/thumbnails";
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    getViewer.mockReset().mockResolvedValue({ isAdmin: true });
+    maybeSingle.mockReset().mockResolvedValue({
+      data: { slug: "old-slug", thumbnail_url: `${BUCKET}/posts/a.png` },
+      error: null,
+    });
+    deleteSelect
+      .mockReset()
+      .mockResolvedValue({ data: [{ id: ID }], error: null });
+    removeBucketImage.mockReset().mockResolvedValue(undefined);
+    createClient.mockClear();
+    revalidatePath.mockClear();
+  });
+
+  /** 실패 결과의 오류만 꺼낸다 */
+  async function failure(id = ID) {
+    const result = await deletePost(id);
+    if (result.ok) throw new Error("실패를 기대했습니다");
+    return result.error;
+  }
+
+  it("관리자가 아니면 DB를 부르지 않고 forbidden이다", async () => {
+    getViewer.mockResolvedValue({ isAdmin: false });
+    expect((await failure()).code).toBe("forbidden");
+    expect(createClient).not.toHaveBeenCalled();
+    expect(removeBucketImage).not.toHaveBeenCalled();
+  });
+
+  it("uuid가 아닌 id는 DB를 부르지 않고 이미 삭제된 글(notFound)이다", async () => {
+    const error = await failure("없는-id");
+    expect(error.code).toBe("notFound");
+    expect(error.message).toBe("이미 삭제된 글입니다.");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("삭제 전 글이 없으면 notFound이고 삭제·정리하지 않는다", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    expect((await failure()).code).toBe("notFound");
+    expect(deleteSelect).not.toHaveBeenCalled();
+    expect(removeBucketImage).not.toHaveBeenCalled();
+  });
+
+  it("조회와 삭제 사이에 지워져 0행이면 notFound이고 정리하지 않는다", async () => {
+    deleteSelect.mockResolvedValue({ data: [], error: null });
+    expect((await failure()).code).toBe("notFound");
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(removeBucketImage).not.toHaveBeenCalled();
+  });
+
+  it("성공하면 목록·상세를 재검증하고 이 글의 썸네일을 posts 폴더 기준으로 정리한다", async () => {
+    expect(await deletePost(ID)).toEqual({ ok: true, data: null });
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+    expect(revalidatePath).toHaveBeenCalledWith("/posts/old-slug");
+    expect(removeBucketImage).toHaveBeenCalledWith(
+      `${BUCKET}/posts/a.png`,
+      "posts",
+    );
+  });
+
+  it("썸네일이 없어도 삭제는 성공한다(정리 헬퍼가 null을 걸러낸다)", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { slug: "old-slug", thumbnail_url: null },
+      error: null,
+    });
+    expect((await deletePost(ID)).ok).toBe(true);
+    expect(removeBucketImage).toHaveBeenCalledWith(null, "posts");
+  });
+
+  it("삭제 오류·조회 오류·예외는 unknown이고 재검증하지 않는다", async () => {
+    deleteSelect.mockResolvedValue({ data: null, error: { code: "XX000" } });
+    expect((await failure()).code).toBe("unknown");
+    deleteSelect.mockRejectedValue(new Error("네트워크"));
+    expect((await failure()).code).toBe("unknown");
+    maybeSingle.mockResolvedValue({ data: null, error: { code: "XX000" } });
+    expect((await failure()).code).toBe("unknown");
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(removeBucketImage).not.toHaveBeenCalled();
   });
 });
 
