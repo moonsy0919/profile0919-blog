@@ -32,7 +32,7 @@ function nameKey(name: string) {
 
 /**
  * TagPicker의 상태와 동작을 관리한다.
- * 검색·선택·새 태그 추가(더미 createTag)·키보드 이동을 한곳에서 다룬다.
+ * 검색·선택·새 태그 추가(createTag 서버 액션)·키보드 이동을 한곳에서 다룬다.
  */
 function useTagPicker({ tags, selectedIds, onChange }: TagPickerProps) {
   const [query, setQuery] = useState("");
@@ -69,16 +69,20 @@ function useTagPicker({ tags, selectedIds, onChange }: TagPickerProps) {
   async function addNew() {
     if (!addable || adding) return;
     setAdding(true);
-    const result = await createTag(normalizeTagName(query));
+    const requested = normalizeTagName(query);
+    const result = await createTag(requested);
     setAdding(false);
     if (!result.ok) {
       const message = result.error.fieldErrors?.name ?? result.error.message;
       setLocalError(message);
       return;
     }
-    const known = allTags.find((tag) => tag.id === result.data.id);
-    if (known) toast.info("이미 있는 태그라서 기존 태그를 선택했습니다");
-    else setCreated((prev) => [...prev, result.data]);
+    const known = allTags.some((tag) => tag.id === result.data.id);
+    // 목록에 없어도 서버가 기존 태그(대소문자만 다른 표기)를 돌려줬다면 새로 만든 것이 아니다
+    if (known || result.data.name !== requested) {
+      toast.info("이미 있는 태그라서 기존 태그를 선택했습니다");
+    }
+    if (!known) setCreated((prev) => [...prev, result.data]);
     select(result.data);
   }
 
@@ -128,7 +132,7 @@ function useTagPicker({ tags, selectedIds, onChange }: TagPickerProps) {
 
 /**
  * 태그 선택 UI. 선택된 태그 칩(× 제거)과 검색 입력, combobox 결과 목록, [추가] 버튼으로 이루어진다.
- * [추가]는 더미 createTag로 즉시 등록하므로 글 [저장]을 취소해도 태그는 남는다.
+ * [추가]는 createTag(`add_tag`)로 즉시 등록하므로 글 [저장]을 취소해도 태그는 남는다.
  * @param tags 선택 후보(서버가 조회한 전체 태그)
  * @param selectedIds 선택된 태그 id
  * @param onChange 선택 변경 콜백

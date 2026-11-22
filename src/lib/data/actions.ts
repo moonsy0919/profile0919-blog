@@ -1,8 +1,10 @@
 "use server";
 
+import { createClient } from "@/lib/supabase/server";
+import { tagNameSchema } from "@/lib/validation/fields";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
-import { dummyTags } from "./dummy/tags";
+import { getViewer } from "./reads";
 import type {
   ActionErrorCode,
   ActionResult,
@@ -18,8 +20,8 @@ import type {
 } from "./types";
 
 /*
- * 쓰기 서버 액션 더미 구현.
- * 데이터를 실제로 바꾸지 않고 시그니처와 반환 형태만 고정한다.
+ * 쓰기 서버 액션. `createTag`만 실구현(Task 020)이고 나머지는 더미다.
+ * 더미는 데이터를 실제로 바꾸지 않고 시그니처와 반환 형태만 고정한다.
  * 관리자 재검증·Zod 검증·revalidatePath는 Task 006·016·021~023에서 이 파일 안에 채운다.
  * 프로덕션 보호는 이 함수를 부르는 더미 경로의 라우트 게이트(assertDevOnly)가 맡는다.
  * 'use server' 파일은 async 함수만 export할 수 있으므로 헬퍼는 export하지 않는다.
@@ -127,19 +129,47 @@ export async function deleteDevLog(id: string): Promise<ActionResult<null>> {
   return succeed(null);
 }
 
+/** 태그 등록에 실패했을 때 보일 문구 */
+const TAG_FAILED_MESSAGE = "태그를 추가하지 못했습니다. 다시 시도해 주세요";
+
 /**
- * 태그를 추가한다. 대소문자 무시로 이미 있으면 기존 태그를 돌려준다.
- * @param name 새 태그 이름
+ * 태그를 추가한다. 관리자 재검증 → 이름 검증 → `add_tag` DB 함수 순서로 처리한다.
+ * 대소문자 무시로 이미 있으면 새로 만들지 않고 기존 태그(최초 등록 표기)를 돌려준다.
+ * 예외를 던지지 않고 권한 없음(forbidden)·검증 실패(validation)·그 외(unknown)로 알린다.
+ * @param name 새 태그 이름 (앞뒤 공백·`#`은 검증 단계에서 정리된다)
  */
 export async function createTag(name: string): Promise<ActionResult<Tag>> {
-  const trimmed = name.trim();
-  const existing = dummyTags.find(
-    (tag) => tag.name.toLowerCase() === trimmed.toLowerCase(),
-  );
-  if (existing) {
-    return succeed(existing);
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) return fail("forbidden", "권한이 없습니다.");
+
+  const parsed = tagNameSchema.safeParse(name);
+  if (!parsed.success) {
+    const message =
+      parsed.error.issues[0]?.message ?? "태그 이름을 확인해 주세요";
+    return fail("validation", message, { name: message });
   }
-  return succeed({ id: `tag-new-${trimmed.toLowerCase()}`, name: trimmed });
+  return addTagRecord(parsed.data);
+}
+
+/**
+ * 사용자 세션의 서버 클라이언트로 `add_tag`를 호출한다(security invoker라 RLS가 적용된다).
+ * 행이 돌아오지 않으면(권한·정책으로 등록이 막힌 경우 포함) 실패로 본다.
+ */
+async function addTagRecord(tagName: string): Promise<ActionResult<Tag>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("add_tag", {
+      tag_name: tagName,
+    });
+    if (error || !data?.id) {
+      console.error("태그 등록 실패", error);
+      return fail("unknown", TAG_FAILED_MESSAGE);
+    }
+    return succeed({ id: data.id, name: data.name });
+  } catch (error) {
+    console.error("태그 등록 중 예외", error);
+    return fail("unknown", TAG_FAILED_MESSAGE);
+  }
 }
 
 /**

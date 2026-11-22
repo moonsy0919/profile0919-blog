@@ -91,6 +91,28 @@ describe("TagPicker", () => {
     await screen.findByLabelText("Vitest 태그 제거");
   });
 
+  it("목록에 없는 기존 태그를 서버가 돌려주면(대소문자만 다른 표기) 선택하고 토스트로 알린다", async () => {
+    createTag.mockResolvedValue({
+      ok: true,
+      data: { id: "server-react", name: "ReactJS" },
+    });
+    render(<Harness />);
+    fireEvent.change(input(), { target: { value: "reactjs" } });
+    fireEvent.click(screen.getByRole("button", { name: "추가" }));
+    await screen.findByLabelText("ReactJS 태그 제거");
+    expect(toast.info).toHaveBeenCalledWith(
+      "이미 있는 태그라서 기존 태그를 선택했습니다",
+    );
+  });
+
+  it("새로 만든 태그는 이름이 같으면 토스트 없이 선택한다", async () => {
+    render(<Harness />);
+    fireEvent.change(input(), { target: { value: "Vitest" } });
+    fireEvent.click(screen.getByRole("button", { name: "추가" }));
+    await screen.findByLabelText("Vitest 태그 제거");
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
   it("11번째 태그는 선택하지 못하고 안내한다", () => {
     const many = Array.from({ length: 11 }, (_, i) => ({
       id: `m${i}`,

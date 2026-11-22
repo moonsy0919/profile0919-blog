@@ -1,4 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { getViewer, rpc, createClient } = vi.hoisted(() => {
+  const rpc = vi.fn();
+  return {
+    getViewer: vi.fn(),
+    rpc,
+    createClient: vi.fn(async () => ({ rpc })),
+  };
+});
+vi.mock("./reads", () => ({ getViewer }));
+vi.mock("@/lib/supabase/server", () => ({ createClient }));
+
 import {
   createDevLog,
   createPost,
@@ -96,20 +108,93 @@ describe("개발 일기 액션", () => {
   });
 });
 
-describe("태그·프로필 액션", () => {
-  it("대소문자만 다른 태그는 기존 태그를 돌려준다", async () => {
-    const result = await createTag(" react ");
-    expect(result).toEqual({
-      ok: true,
-      data: { id: "tag-react", name: "React" },
+describe("createTag", () => {
+  const row = { id: "t-1", name: "React", created_at: "2026-11-22T00:00:00Z" };
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    getViewer.mockReset().mockResolvedValue({ isAdmin: true });
+    rpc.mockReset().mockResolvedValue({ data: row, error: null });
+    createClient.mockClear();
+  });
+
+  it("관리자가 아니면 DB를 부르지 않고 forbidden이다", async () => {
+    getViewer.mockResolvedValue({ isAdmin: false });
+    const result = await createTag("React");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("forbidden");
+    expect(createClient).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("빈 이름은 validation 오류이고 DB를 부르지 않는다", async () => {
+    const result = await createTag("   ");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("validation");
+      expect(result.error.fieldErrors?.name).toBe("태그 이름을 입력해 주세요");
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("20자를 넘으면 validation 오류이고 DB를 부르지 않는다", async () => {
+    const result = await createTag("a".repeat(21));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("validation");
+      expect(result.error.fieldErrors?.name).toContain("20자");
+    }
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("정규화한 이름으로 add_tag를 호출하고 태그를 돌려준다", async () => {
+    rpc.mockResolvedValue({
+      data: { id: "t-2", name: "Vitest", created_at: "x" },
+      error: null,
+    });
+    const result = await createTag(" #  Vitest  ");
+    expect(rpc).toHaveBeenCalledWith("add_tag", { tag_name: "Vitest" });
+    expect(result).toEqual({ ok: true, data: { id: "t-2", name: "Vitest" } });
+  });
+
+  it("대소문자만 다른 이름은 add_tag가 돌려준 기존 태그(최초 표기)를 그대로 돌려준다", async () => {
+    const result = await createTag("react");
+    expect(rpc).toHaveBeenCalledWith("add_tag", { tag_name: "react" });
+    expect(result).toEqual({ ok: true, data: { id: "t-1", name: "React" } });
+  });
+
+  it("DB 오류는 unknown으로 바꾸고 예외를 던지지 않는다", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    const result = await createTag("React");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("unknown");
+  });
+
+  it("정책으로 등록이 막혀 빈 행이 오면 unknown이다", async () => {
+    rpc.mockResolvedValue({
+      data: { id: null, name: null, created_at: null },
+      error: null,
+    });
+    const result = await createTag("React");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("unknown");
+  });
+
+  it("클라이언트 생성·호출 중 예외도 unknown으로 바꾼다", async () => {
+    rpc.mockRejectedValue(new Error("network"));
+    await expect(createTag("React")).resolves.toMatchObject({
+      ok: false,
+      error: { code: "unknown" },
+    });
+    createClient.mockRejectedValueOnce(new Error("cookies"));
+    await expect(createTag("React")).resolves.toMatchObject({
+      ok: false,
+      error: { code: "unknown" },
     });
   });
+});
 
-  it("새 태그 이름은 다듬어서 돌려준다", async () => {
-    const result = await createTag(" Vitest ");
-    expect(result.ok && result.data.name).toBe("Vitest");
-  });
-
+describe("프로필 액션", () => {
   it("프로필 수정은 입력값을 반영해 돌려준다", async () => {
     const result = await updateProfile({
       displayName: "새 이름",
