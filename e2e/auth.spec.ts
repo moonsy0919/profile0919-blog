@@ -10,7 +10,7 @@ import {
 // 인증 E2E는 CI에 Supabase 시크릿과 관리자 계정이 없어 로컬 개발 서버에서만 실행한다.
 test.skip(Boolean(process.env.CI), "인증 E2E는 로컬 전용");
 
-const POST_EDIT = "/posts/hello-blog?page=2&edit=1";
+const POST_EDIT = "/posts/hello-world?page=2&edit=1";
 const WRONG_LOGIN = "아이디 또는 비밀번호가 올바르지 않습니다";
 const BLOCKED = "이 IP에서의 로그인이 차단되었습니다";
 

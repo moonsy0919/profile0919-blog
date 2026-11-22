@@ -2,8 +2,9 @@ import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 import { firstDevLogPath } from "./helpers/dev-log";
 
-// 작성·수정 폼은 더미 게이트라 프로덕션(CI는 프로덕션 빌드)에서는 404다. 개발 서버에서만 검증한다.
-test.skip(Boolean(process.env.CI), "더미 기반 화면은 로컬 개발 서버 전용");
+// 이 파일은 게시글 수정 폼의 화면 동작(기존 값·slug 경고·취소)과 개발 일기 폼을 본다. 관리자 세션과 실데이터(시드 글)가 필요해 로컬 개발 서버에서만 검증한다.
+// 게시글 작성·수정의 저장 동작은 post-create.spec.ts·post-edit.spec.ts가 검증한다.
+test.skip(Boolean(process.env.CI), "관리자 세션·실데이터가 필요해 로컬 전용");
 test.skip(
   !hasAdminSessionEnv(),
   "관리자 세션 주입용 환경 변수(.env.local)가 필요합니다",

@@ -2,14 +2,14 @@ import { expect, test } from "@playwright/test";
 
 /**
  * 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다).
- * /login은 Task 016, /posts/[slug]·/dev-logs·/dev-logs/[id] 읽기 모드는 Task 018·019, /posts/new는 Task 021-C에서 열었으므로 제외한다
- * (/posts/new의 비관리자 로그인 리디렉션은 post-create.spec.ts가 검증한다).
+ * /login은 Task 016, /posts/[slug]·/dev-logs·/dev-logs/[id] 읽기 모드는 Task 018·019, /posts/new는 Task 021-C, 게시글 ?edit=1은 Task 021-U에서 열었으므로 제외한다
+ * (/posts/new·?edit=1의 비관리자 로그인 리디렉션은 post-create.spec.ts·post-edit.spec.ts가 검증한다.
+ * 둘 다 DB를 읽으므로 Supabase 환경 변수가 없는 CI에서는 검증하지 않는다).
  * 수정 모드(?edit=1)는 DB를 읽기 전에 404가 되므로 Supabase 없이도 검증된다.
  */
 const gatedPaths = [
   "/dev-logs/new",
   "/dev-logs/05aa8f8a-6ae7-4fb2-ba57-c4983f7c5da3?edit=1",
-  "/posts/hello-world?edit=1",
   "/profile/edit",
   "/weather-header",
 ];

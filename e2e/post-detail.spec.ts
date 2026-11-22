@@ -2,7 +2,7 @@ import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 import { firstDevLogPath } from "./helpers/dev-log";
 
-// 게시글 상세(시드 글 7개)와 개발 일기 목록·상세(시드 5개)는 Supabase 실데이터를 읽는다. 수정 모드·삭제는 더미 액션이라 개발 환경 전용이다.
+// 게시글 상세(시드 글 7개)와 개발 일기 목록·상세(시드 5개)는 Supabase 실데이터를 읽는다. 게시글 수정 모드는 실연동(Task 021-U)이고, 삭제는 아직 더미 액션이라 개발 환경 전용이다.
 // CI에는 Supabase 환경 변수가 없어 로컬 개발 서버에서만 검증한다.
 test.skip(Boolean(process.env.CI), "실데이터 읽기는 로컬 개발 서버 전용");
 test.skip(
