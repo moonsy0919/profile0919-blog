@@ -12,6 +12,8 @@ type ThumbnailFieldProps = {
   src: string | null;
   /** 이미지 선검증 오류 문구 */
   error: string | null;
+  /** 저장 중 Storage로 올리는 중인지 (안내 문구 표시) */
+  uploading?: boolean;
   disabled?: boolean;
   onSelect: (file: File) => void;
   onRemove: () => void;
@@ -19,12 +21,13 @@ type ThumbnailFieldProps = {
 
 /**
  * 썸네일(16:9) 미리보기와 선택·제거 컨트롤.
- * 실제 업로드는 Task 020~021에서 연결하므로 로컬 미리보기까지만 다룬다.
+ * 이 컴포넌트는 로컬 미리보기·선택·제거와 업로드 상태 표시만 맡는다(업로드는 [저장] 시점에 폼이 수행).
  * 같은 파일을 다시 골라도 change가 일어나도록 선택 직후 input 값을 비운다.
  */
 export function ThumbnailField({
   src,
   error,
+  uploading,
   disabled,
   onSelect,
   onRemove,
@@ -84,6 +87,11 @@ export function ThumbnailField({
       <p id="thumbnail-file-hint" className="text-xs text-muted-foreground">
         PNG, JPG, GIF, WEBP · 최대 5MB
       </p>
+      {uploading ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          이미지를 올리는 중입니다…
+        </p>
+      ) : null}
       {error ? (
         <p
           id="thumbnail-file-error"

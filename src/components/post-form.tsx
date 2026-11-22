@@ -9,6 +9,7 @@ import { EditorFormFrame } from "@/components/editor-form-frame";
 import { FormField } from "@/components/form-field";
 import type { Post, Tag } from "@/lib/data";
 import { createPost, updatePost } from "@/lib/data/actions";
+import { saveFormWithThumbnail } from "@/lib/save-form-with-thumbnail";
 import { suggestSlug } from "@/lib/text/slug";
 import { SAVE_FAILED_MESSAGE, useEditorFields } from "@/lib/use-editor-fields";
 import { zodErrorToFieldErrors } from "@/lib/validation/errors";
@@ -62,7 +63,23 @@ function usePostForm({ post, cancelHref, readQuery = "" }: PostFormProps) {
     if (!result.error.fieldErrors) toast.error(SAVE_FAILED_MESSAGE);
   }
 
-  /** 검증 → 더미 저장 → 결과 분기 */
+  /** 썸네일 업로드 → 저장 → 결과 분기. 업로드가 실패하면 저장하지 않고 입력값을 유지한다 */
+  async function submit(values: PostFormValues) {
+    fields.setSubmitting(true);
+    const result = await saveFormWithThumbnail(fields, {
+      folder: "posts",
+      editing: Boolean(post),
+      previousUrl: post?.thumbnailUrl ?? null,
+      save: (thumbnailUrl) =>
+        post
+          ? updatePost({ id: post.id, ...values, thumbnailUrl })
+          : createPost({ ...values, thumbnailUrl }),
+    });
+    fields.setSubmitting(false);
+    if (result) handleResult(result, values);
+  }
+
+  /** 검증 → 저장 */
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const parsed = postFormSchema.safeParse({
@@ -77,12 +94,7 @@ function usePostForm({ post, cancelHref, readQuery = "" }: PostFormProps) {
       return;
     }
     fields.setFieldErrors({});
-    fields.setSubmitting(true);
-    const result = post
-      ? await updatePost({ id: post.id, ...parsed.data })
-      : await createPost(parsed.data);
-    fields.setSubmitting(false);
-    handleResult(result, parsed.data);
+    await submit(parsed.data);
   }
 
   return {
@@ -110,7 +122,7 @@ function usePostForm({ post, cancelHref, readQuery = "" }: PostFormProps) {
 
 /**
  * 게시글 작성·수정 폼. 수정 모드는 상세가 이미 조회한 값으로 시작한다.
- * 변경이 있을 때만 [취소]·새로고침에서 이탈을 확인한다. 썸네일은 로컬 미리보기까지만 다룬다.
+ * 변경이 있을 때만 [취소]·새로고침에서 이탈을 확인한다. 새 썸네일은 [저장] 시점에 Storage로 올린다.
  * @param tags 태그 선택 후보
  * @param post 수정할 글 (없으면 작성)
  * @param cancelHref 수정 모드의 [취소] 이동 주소
@@ -127,7 +139,7 @@ export function PostForm(props: PostFormProps) {
       heading={editing ? "게시글 수정" : "게시글 작성"}
       submitLabel="저장"
       submitting={fields.submitting}
-      submitDisabled={!fields.filled}
+      submitDisabled={fields.submitBlocked}
       leaveOpen={fields.leaveOpen}
       onLeaveOpenChange={fields.setLeaveOpen}
       onSubmit={form.handleSubmit}

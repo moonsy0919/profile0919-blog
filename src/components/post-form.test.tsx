@@ -3,15 +3,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Post, Tag } from "@/lib/data";
 import { PostForm } from "./post-form";
 
-const { push, toast, createPost, updatePost } = vi.hoisted(() => ({
-  push: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-  createPost: vi.fn(),
-  updatePost: vi.fn(),
-}));
+const { push, toast, createPost, updatePost, uploadImage, deleteImages } =
+  vi.hoisted(() => ({
+    push: vi.fn(),
+    toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+    createPost: vi.fn(),
+    updatePost: vi.fn(),
+    uploadImage: vi.fn(),
+    deleteImages: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("sonner", () => ({ toast }));
+vi.mock("@/lib/storage/upload", () => ({
+  uploadImage,
+  deleteImages,
+  UPLOAD_FAILED_MESSAGE: "이미지를 올리지 못했습니다. 다시 시도해 주세요",
+}));
 vi.mock("@/lib/data/actions", () => ({
   createPost,
   updatePost,
@@ -40,8 +48,30 @@ function saveButton() {
   return screen.getByRole("button", { name: "저장" }) as HTMLButtonElement;
 }
 
+const BASE = "https://abc.supabase.co";
+const NEW_URL = `${BASE}/storage/v1/object/public/thumbnails/posts/new.png`;
+const OLD_URL = `${BASE}/storage/v1/object/public/thumbnails/posts/old.png`;
+
+/** 썸네일 입력에 이미지 파일을 고른다 */
+function pickThumbnail() {
+  const file = new File(["x"], "a.png", { type: "image/png" });
+  fireEvent.change(screen.getByLabelText("썸네일"), {
+    target: { files: [file] },
+  });
+  return file;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", BASE);
+  URL.createObjectURL = vi.fn(() => "blob:preview");
+  URL.revokeObjectURL = vi.fn();
+  uploadImage.mockResolvedValue({
+    ok: true,
+    url: NEW_URL,
+    path: "posts/new.png",
+  });
+  deleteImages.mockResolvedValue(undefined);
   createPost.mockResolvedValue({
     ok: true,
     data: { id: "x", slug: "new-one" },
@@ -190,5 +220,119 @@ describe("PostForm 수정", () => {
     fireEvent.click(saveButton());
     await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
     expect(toast.error).toHaveBeenCalledWith("글을 찾을 수 없습니다");
+  });
+});
+
+describe("PostForm 썸네일 업로드", () => {
+  /** 제목·본문을 채운다 */
+  function fillRequired() {
+    type("제목", "New One");
+    type("본문", "내용");
+  }
+
+  it("새 파일은 올린 뒤 저장 액션에 주소 문자열만 넘긴다", async () => {
+    render(<PostForm tags={tags} />);
+    fillRequired();
+    const file = pickThumbnail();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/posts/new-one"));
+
+    expect(uploadImage).toHaveBeenCalledWith(file, "posts");
+    const input = createPost.mock.calls[0][0];
+    expect(input.thumbnailUrl).toBe(NEW_URL);
+    const hasBinary = Object.values(input).some(
+      (value) => value instanceof Blob,
+    );
+    expect(hasBinary).toBe(false);
+    expect(deleteImages).not.toHaveBeenCalled();
+  });
+
+  it("파일을 고르지 않으면 업로드하지 않는다", async () => {
+    render(<PostForm tags={tags} />);
+    fillRequired();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(createPost).toHaveBeenCalled());
+    expect(uploadImage).not.toHaveBeenCalled();
+    expect(createPost.mock.calls[0][0].thumbnailUrl).toBeNull();
+  });
+
+  it("업로드가 실패하면 저장하지 않고 안내하며 입력값을 유지한다", async () => {
+    uploadImage.mockResolvedValue({ ok: false, message: "올리지 못했습니다" });
+    render(<PostForm tags={tags} />);
+    fillRequired();
+    pickThumbnail();
+    fireEvent.click(saveButton());
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("올리지 못했습니다"),
+    );
+    expect(createPost).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain(
+      "올리지 못했습니다",
+    );
+    expect((screen.getByLabelText("제목") as HTMLInputElement).value).toBe(
+      "New One",
+    );
+    expect(saveButton().disabled).toBe(false);
+  });
+
+  it("업로드 중에는 [저장]이 비활성이고 안내가 보인다", async () => {
+    let finish: (value: unknown) => void = () => {};
+    uploadImage.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    render(<PostForm tags={tags} />);
+    fillRequired();
+    pickThumbnail();
+    fireEvent.click(saveButton());
+
+    expect(await screen.findByText(/올리는 중/)).toBeTruthy();
+    // 제출 중에는 버튼 문구가 "저장 중…"으로 바뀐다
+    const pending = screen.getByRole("button", { name: "저장 중…" });
+    expect((pending as HTMLButtonElement).disabled).toBe(true);
+    finish({ ok: true, url: NEW_URL, path: "posts/new.png" });
+    await waitFor(() => expect(push).toHaveBeenCalled());
+  });
+
+  it("작성 중 저장이 실패하면 방금 올린 객체를 지운다", async () => {
+    createPost.mockResolvedValue({
+      ok: false,
+      error: { code: "unknown", message: "x" },
+    });
+    render(<PostForm tags={tags} />);
+    fillRequired();
+    pickThumbnail();
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(deleteImages).toHaveBeenCalledWith(["posts/new.png"]),
+    );
+  });
+
+  it("수정 중 저장이 성공하면 이전 객체를 지운다", async () => {
+    const withThumb = { ...post, thumbnailUrl: OLD_URL };
+    render(<PostForm tags={tags} post={withThumb} />);
+    pickThumbnail();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(updatePost).toHaveBeenCalled());
+
+    expect(updatePost.mock.calls[0][0].thumbnailUrl).toBe(NEW_URL);
+    await waitFor(() =>
+      expect(deleteImages).toHaveBeenCalledWith(["posts/old.png"]),
+    );
+    expect(deleteImages).toHaveBeenCalledTimes(1);
+  });
+
+  it("수정 중 저장이 실패하면 새 객체만 지우고 이전 객체는 둔다", async () => {
+    updatePost.mockResolvedValue({
+      ok: false,
+      error: { code: "unknown", message: "x" },
+    });
+    const withThumb = { ...post, thumbnailUrl: OLD_URL };
+    render(<PostForm tags={tags} post={withThumb} />);
+    pickThumbnail();
+    fireEvent.click(saveButton());
+    await waitFor(() =>
+      expect(deleteImages).toHaveBeenCalledWith(["posts/new.png"]),
+    );
+    expect(deleteImages).toHaveBeenCalledTimes(1);
   });
 });

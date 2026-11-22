@@ -24,6 +24,28 @@ describe("useImagePicker", () => {
     expect(result.current.changed).toBe(true);
   });
 
+  it("고른 File을 보관하고, 제거하면 비운다", () => {
+    const { result } = renderHook(() => useImagePicker());
+    const picked = new File(["x"], "a.png", { type: "image/png" });
+    expect(result.current.file).toBeNull();
+    act(() => result.current.select(picked));
+    expect(result.current.file).toBe(picked);
+    act(() => result.current.remove());
+    expect(result.current.file).toBeNull();
+  });
+
+  it("오류로 거부된 파일은 이전에 고른 File을 바꾸지 않는다", () => {
+    const { result } = renderHook(() => useImagePicker());
+    const picked = new File(["x"], "a.png", { type: "image/png" });
+    act(() => result.current.select(picked));
+    act(() =>
+      result.current.select(
+        new File(["x"], "a.svg", { type: "image/svg+xml" }),
+      ),
+    );
+    expect(result.current.file).toBe(picked);
+  });
+
   it("형식·용량 오류는 이전 선택을 유지한 채 오류만 보인다", () => {
     const { result } = renderHook(() => useImagePicker());
     act(() =>

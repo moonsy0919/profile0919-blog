@@ -27,7 +27,7 @@ function sameIds(a: string[], b: string[]) {
 /**
  * 게시글·개발 일기 폼의 공통 필드 상태를 관리한다.
  * 제목·본문·태그·썸네일 선택, 변경 여부(dirty), 제출·이탈 확인 상태를 한곳에서 다룬다.
- * 썸네일은 로컬 미리보기까지만 다루므로 저장에는 기존 주소(제거 시 null)만 넘긴다.
+ * 썸네일은 고른 File을 보관하고, 업로드는 [저장] 시점에 폼이 수행한다(업로드 중 상태·오류는 여기서 관리).
  * @param initial 작성은 빈 값, 수정은 상세가 이미 조회한 값
  */
 export function useEditorFields(initial: EditorInitial) {
@@ -37,6 +37,8 @@ export function useEditorFields(initial: EditorInitial) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const thumbnail = useImagePicker();
 
   const dirty =
@@ -47,6 +49,7 @@ export function useEditorFields(initial: EditorInitial) {
   useUnsavedChanges(dirty);
 
   const savedThumbnailUrl = thumbnail.removed ? null : initial.thumbnailUrl;
+  const filled = title.trim().length > 0 && content.trim().length > 0;
   return {
     title,
     setTitle,
@@ -61,10 +64,26 @@ export function useEditorFields(initial: EditorInitial) {
     leaveOpen,
     setLeaveOpen,
     thumbnail,
+    uploading,
+    setUploading,
+    uploadError,
+    setUploadError,
+    /** 새 파일을 고른다. 이전 업로드 실패 문구는 지운다 */
+    selectThumbnail: (file: File) => {
+      setUploadError(null);
+      thumbnail.select(file);
+    },
+    /** 썸네일을 제거한다. 이전 업로드 실패 문구는 지운다 */
+    removeThumbnail: () => {
+      setUploadError(null);
+      thumbnail.remove();
+    },
     dirty,
     savedThumbnailUrl,
     shownThumbnail: thumbnail.previewUrl ?? savedThumbnailUrl,
-    /** 제목·본문이 모두 채워졌는지 ([저장] 활성 조건) */
-    filled: title.trim().length > 0 && content.trim().length > 0,
+    /** 제목·본문이 모두 채워졌는지 */
+    filled,
+    /** [저장] 비활성 조건: 제목·본문이 비었거나 이미지 업로드 중 (PRD 4.4) */
+    submitBlocked: !filled || uploading,
   };
 }

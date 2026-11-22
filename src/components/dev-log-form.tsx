@@ -9,8 +9,12 @@ import { EditorFormFrame } from "@/components/editor-form-frame";
 import { FormField } from "@/components/form-field";
 import type { DevLog, Tag } from "@/lib/data";
 import { createDevLog, updateDevLog } from "@/lib/data/actions";
+import { saveFormWithThumbnail } from "@/lib/save-form-with-thumbnail";
 import { SAVE_FAILED_MESSAGE, useEditorFields } from "@/lib/use-editor-fields";
-import { devLogFormSchema } from "@/lib/validation/dev-log";
+import {
+  type DevLogFormValues,
+  devLogFormSchema,
+} from "@/lib/validation/dev-log";
 import { zodErrorToFieldErrors } from "@/lib/validation/errors";
 
 type DevLogFormProps = {
@@ -58,7 +62,23 @@ function useDevLogForm({ devLog, cancelHref }: DevLogFormProps) {
     if (!result.error.fieldErrors) toast.error(SAVE_FAILED_MESSAGE);
   }
 
-  /** 검증 → 더미 저장 → 결과 분기 */
+  /** 썸네일 업로드 → 저장 → 결과 분기. 업로드가 실패하면 저장하지 않고 입력값을 유지한다 */
+  async function submit(values: DevLogFormValues) {
+    fields.setSubmitting(true);
+    const result = await saveFormWithThumbnail(fields, {
+      folder: "dev-logs",
+      editing: Boolean(devLog),
+      previousUrl: devLog?.thumbnailUrl ?? null,
+      save: (thumbnailUrl) =>
+        devLog
+          ? updateDevLog({ id: devLog.id, ...values, thumbnailUrl })
+          : createDevLog({ ...values, thumbnailUrl }),
+    });
+    fields.setSubmitting(false);
+    if (result) handleResult(result);
+  }
+
+  /** 검증 → 저장 */
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const parsed = devLogFormSchema.safeParse({
@@ -73,12 +93,7 @@ function useDevLogForm({ devLog, cancelHref }: DevLogFormProps) {
       return;
     }
     fields.setFieldErrors({});
-    fields.setSubmitting(true);
-    const result = devLog
-      ? await updateDevLog({ id: devLog.id, ...parsed.data })
-      : await createDevLog(parsed.data);
-    fields.setSubmitting(false);
-    handleResult(result);
+    await submit(parsed.data);
   }
 
   return {
@@ -111,7 +126,7 @@ export function DevLogForm(props: DevLogFormProps) {
       heading={editing ? "개발 일기 수정" : "개발 일기 게시"}
       submitLabel={editing ? "저장" : "게시"}
       submitting={fields.submitting}
-      submitDisabled={!fields.filled}
+      submitDisabled={fields.submitBlocked}
       leaveOpen={fields.leaveOpen}
       onLeaveOpenChange={fields.setLeaveOpen}
       onSubmit={form.handleSubmit}

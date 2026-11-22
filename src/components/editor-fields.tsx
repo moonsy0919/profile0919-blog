@@ -38,10 +38,16 @@ export function EditorFields({
     <>
       <ThumbnailField
         src={fields.shownThumbnail}
-        error={thumbnail.error ?? fieldErrors.thumbnailUrl ?? null}
-        disabled={submitting}
-        onSelect={thumbnail.select}
-        onRemove={thumbnail.remove}
+        error={
+          thumbnail.error ??
+          fields.uploadError ??
+          fieldErrors.thumbnailUrl ??
+          null
+        }
+        uploading={fields.uploading}
+        disabled={submitting || fields.uploading}
+        onSelect={fields.selectThumbnail}
+        onRemove={fields.removeThumbnail}
       />
       <FormField
         id="editor-title"
