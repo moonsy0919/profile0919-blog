@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getViewer, rpc, createClient, revalidatePath } = vi.hoisted(() => {
   const rpc = vi.fn();
@@ -82,6 +82,10 @@ describe("createPost", () => {
     createClient.mockClear();
     revalidatePath.mockClear();
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   /** 실패 결과의 오류만 꺼낸다 */

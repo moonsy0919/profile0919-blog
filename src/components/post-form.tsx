@@ -28,7 +28,7 @@ type PostFormProps = {
 
 /**
  * 게시글 작성·수정 폼의 상태와 동작을 관리한다.
- * 검증 → 더미 저장 → 결과 분기(이동·필드 오류·토스트)와 취소·이탈 확인을 다룬다.
+ * 검증 → 저장(작성은 실연동 createPost, 수정은 아직 더미 updatePost) → 결과 분기(이동·필드 오류·토스트)와 취소·이탈 확인을 다룬다.
  */
 function usePostForm({ post, cancelHref, readQuery = "" }: PostFormProps) {
   const router = useRouter();
