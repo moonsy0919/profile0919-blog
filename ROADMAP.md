@@ -371,12 +371,17 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
     - 결정: 삭제 후 Storage 고아 파일 정리 도구는 **불필요**(PRD 가정 24 기본안)로 확정한다
 
 - **Task 021: 게시글 작성·수정·삭제** (F004, F005) — 21-C → 21-R → 21-U → 21-D 순서
-  - **21-C 생성**
-    - [ ] `save_post` DB 함수(신규·수정 겸용, 글 + 태그 매핑 한 트랜잭션): 이 단계에서는 신규 경로를 구현·검증한다
-    - [ ] `createPost` 실구현(Task 005 더미 교체): 공통 실행 순서(관리자 재검증 → Zod → 이미지 URL 경로 검증 → DB → 후처리), 통일 반환 형태, 오류 분류(권한·검증·slug 중복·일반)
-    - [ ] 헤더 [작성] → `/posts/new` 연결(`requireAdmin` 가드), [저장] 후 게시글 상세로 이동, `revalidatePath("/")`
-    - [ ] 게이트 해제: `/posts/new`를 프로덕션에 연다(`requireAdmin` 가드 이후)
+  - **21-C 생성** ✅ - 완료(2026-11-23)
+    - [x] `save_post` DB 함수(신규·수정 겸용, 글 + 태그 매핑 한 트랜잭션): 이 단계에서는 신규 경로를 구현·검증한다
+    - [x] `createPost` 실구현(Task 005 더미 교체): 공통 실행 순서(관리자 재검증 → Zod → 이미지 URL 경로 검증 → DB → 후처리), 통일 반환 형태, 오류 분류(권한·검증·slug 중복·일반)
+    - [x] 헤더 [작성] → `/posts/new` 연결(`requireAdmin` 가드), [저장] 후 게시글 상세로 이동, `revalidatePath("/")`
+    - [x] 게이트 해제: `/posts/new`를 프로덕션에 연다(`requireAdmin` 가드 이후)
     - 수락: 관리자가 쓴 글이 즉시 공개되고 상세로 이동하며, 비관리자의 직접 호출은 거부된다
+    - 구현 메모(2026-11-23):
+      - 마이그레이션 `20261122152933_create_save_post.sql`(되돌림 SQL 주석 포함, 보안 어드바이저에 새 경고 없음): `save_post(p_id, p_slug, p_title, p_content, p_thumbnail_url, p_tag_ids)`, security invoker, `authenticated`만 실행 가능(anon 거부 확인). 태그 id 중복 제거·11개 이상은 `22023`, 수정 대상 없음은 `P0002`, slug 중복 `23505`, 없는 태그 id `23503`(글까지 롤백). 수정 분기는 함수에 이미 있고 검증은 21-U에서 한다
+      - `createPost`(`src/lib/data/actions.ts`): `getViewer` → `postFormSchema` → 썸네일이 이 버킷 `posts/` 경로인지(`isBucketImageUrl`) → 사용자 세션 클라이언트로 `save_post` → 성공 시 `revalidatePath("/")`·`/posts/{slug}`. `23505`는 slug 필드 `conflict`, 그 외·예외는 `unknown`. 생성 타입이 nullable 인자를 표현하지 못해 `p_id`·`p_thumbnail_url`의 null은 타입 단언으로 넘긴다
+      - 폼(`PostForm`)·헤더 [작성]·`requireAdmin`은 이미 연결돼 있어 코드 변경이 없고, `posts/new/page.tsx`에서 `assertDevOnly()`만 제거했다. `updatePost`·`deletePost`와 상세 `?edit=1`·[수정]·[삭제] 게이트는 그대로다(21-U·21-D)
+      - 검증: 단위 `createPost` 7개(권한·검증·버킷 밖 URL·성공 호출 인자와 재검증·23505·그 외 오류), 로컬 E2E `post-create.spec.ts` 4개(작성 후 DB 즉시 공개·태그 매핑·상세 이동, slug 중복 필드 오류, [취소] 이탈 확인, 비관리자 로그인 리디렉션)와 `image-upload.spec.ts` 5개(실데이터 기준으로 보정) 통과, 정리 후 글 7·태그 4 유지. 프로덕션 빌드에서 `/posts/new`는 로그인 리디렉션(307), `/posts/hello-world?edit=1`·`/dev-logs/new`·`/profile/edit`는 404
   - **21-R 생성물 읽기 검증**
     - [ ] 작성한 글이 메인 목록(최신순)·사이드바(새 태그와 개수)·태그 필터·상세·sitemap에 나타나고, 상세 [목록으로]가 태그·페이지를 복원한다
     - 수락: Phase 6 읽기 화면이 실제 작성 데이터로 동작한다
