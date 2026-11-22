@@ -1,8 +1,15 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 import { hasAdminSessionEnv, loginAsAdmin } from "./helpers/admin-session";
 import { firstDevLogPath } from "./helpers/dev-log";
+import {
+  assertSeedPostsIntact,
+  cleanup,
+  countPostsBySlug,
+  seedPost,
+  suffix,
+} from "./helpers/post-seed";
 
-// 게시글 상세(시드 글 7개)와 개발 일기 목록·상세(시드 5개)는 Supabase 실데이터를 읽는다. 게시글 수정 모드는 실연동(Task 021-U)이고, 삭제는 아직 더미 액션이라 개발 환경 전용이다.
+// 게시글 상세(시드 글 7개)와 개발 일기 목록·상세(시드 5개)는 Supabase 실데이터를 읽는다. 게시글 수정·삭제는 실연동(Task 021-U·021-D)이라 [삭제]를 누르는 테스트는 서비스 키로 만든 `[e2e]` 글만 대상으로 한다.
 // CI에는 Supabase 환경 변수가 없어 로컬 개발 서버에서만 검증한다.
 test.skip(Boolean(process.env.CI), "실데이터 읽기는 로컬 개발 서버 전용");
 test.skip(
@@ -124,12 +131,24 @@ test.describe("수정 모드 전환", () => {
 });
 
 test.describe("삭제 확인 다이얼로그", () => {
-  test("[취소]로 닫으면 삭제하지 않고 상세에 머문다", async ({
-    page,
-    context,
-  }) => {
+  // 실제 deletePost가 연결돼 있으므로 시드 글(hello-world 등) 대신 서비스 키로 만든 [e2e] 글만 대상으로 한다.
+  let post = "";
+
+  test.beforeEach(async ({ context }) => {
+    await assertSeedPostsIntact();
+    await cleanup();
+    const slug = `e2e-dialog-${suffix()}`;
+    await seedPost({ slug });
+    post = `/posts/${slug}`;
     await asAdmin(context);
-    await page.goto(POST);
+  });
+  test.afterEach(async () => {
+    await cleanup();
+    await assertSeedPostsIntact();
+  });
+
+  test("[취소]로 닫으면 삭제하지 않고 상세에 머문다", async ({ page }) => {
+    await page.goto(post);
     await page.getByRole("button", { name: "삭제", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
@@ -140,21 +159,22 @@ test.describe("삭제 확인 다이얼로그", () => {
 
     await dialog.getByRole("button", { name: "취소" }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page).toHaveURL(new RegExp(`${POST}$`));
+    await expect(page).toHaveURL(new RegExp(`${post}$`));
+    expect(await countPostsBySlug(post.replace("/posts/", ""))).toBe(1);
   });
 
-  test("Esc로 닫는다", async ({ page, context }) => {
-    await asAdmin(context);
-    await page.goto(POST);
+  test("Esc로 닫는다", async ({ page }) => {
+    await page.goto(post);
     await page.getByRole("button", { name: "삭제", exact: true }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
 
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page).toHaveURL(new RegExp(`${POST}$`));
+    await expect(page).toHaveURL(new RegExp(`${post}$`));
+    expect(await countPostsBySlug(post.replace("/posts/", ""))).toBe(1);
   });
 
-  // 게시글 삭제 확인은 더미 deletePost가 실제 글 id를 모르므로 Task 021-D(실연동)에서 검증한다.
+  // 게시글 삭제 실행(확인 → 사라짐)은 post-delete.spec.ts가 검증한다.
 
   // 개발 일기 삭제 확인은 더미 deleteDevLog가 실제 글 id를 모르므로 Task 022-D(실연동)에서 검증한다.
 });
