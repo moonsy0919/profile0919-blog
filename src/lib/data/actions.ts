@@ -1,7 +1,11 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { isBucketImageUrl } from "@/lib/storage/paths";
 import { createClient } from "@/lib/supabase/server";
+import { zodErrorToFieldErrors } from "@/lib/validation/errors";
 import { tagNameSchema } from "@/lib/validation/fields";
+import { postFormSchema } from "@/lib/validation/post";
 import { dummyDevLogs } from "./dummy/devLogs";
 import { dummyPosts } from "./dummy/posts";
 import { getViewer } from "./reads";
@@ -20,7 +24,7 @@ import type {
 } from "./types";
 
 /*
- * 쓰기 서버 액션. `createTag`만 실구현(Task 020)이고 나머지는 더미다.
+ * 쓰기 서버 액션. `createTag`(Task 020)·`createPost`(Task 021-C)만 실구현이고 나머지는 더미다.
  * 더미는 데이터를 실제로 바꾸지 않고 시그니처와 반환 형태만 고정한다.
  * 관리자 재검증·Zod 검증·revalidatePath는 Task 006·016·021~023에서 이 파일 안에 채운다.
  * 프로덕션 보호는 이 함수를 부르는 더미 경로의 라우트 게이트(assertDevOnly)가 맡는다.
@@ -50,19 +54,84 @@ function isSlugTaken(slug: string, ownId?: string): boolean {
   return dummyPosts.some((post) => post.slug === slug && post.id !== ownId);
 }
 
+/** 게시글 저장에 실패했을 때 보일 문구 */
+const POST_SAVE_FAILED_MESSAGE = "저장하지 못했습니다. 다시 시도해 주세요";
+
+/** slug 중복 문구 */
+const SLUG_TAKEN_MESSAGE = "이미 사용 중인 slug입니다.";
+
 /**
- * 게시글을 작성한다. 이미 있는 slug면 slug 필드 오류(conflict)다.
+ * 게시글 작성 입력을 검증한다. Zod 스키마(폼과 공용) 뒤에 썸네일이 이 버킷의 `posts/` 경로인지 확인한다.
+ * @param input 폼이 보낸 입력
+ */
+function parsePostInput(input: PostInput): ActionResult<PostInput> {
+  const parsed = postFormSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors = zodErrorToFieldErrors(parsed.error);
+    const message = Object.values(fieldErrors)[0] ?? "입력값을 확인해 주세요";
+    return fail("validation", message, fieldErrors);
+  }
+  const { thumbnailUrl } = parsed.data;
+  if (thumbnailUrl && !isBucketImageUrl(thumbnailUrl, ["posts"])) {
+    const message = "허용되지 않는 이미지 주소입니다";
+    return fail("validation", message, { thumbnailUrl: message });
+  }
+  return succeed(parsed.data);
+}
+
+/**
+ * 사용자 세션의 서버 클라이언트로 `save_post`를 호출한다(security invoker라 RLS가 적용된다).
+ * slug 중복(23505)은 slug 필드 오류(conflict), 그 외·빈 행·예외는 일반 오류(unknown)다.
+ * @param input 검증을 통과한 입력
+ */
+async function savePostRecord(
+  input: PostInput,
+): Promise<ActionResult<PostRef>> {
+  try {
+    const supabase = await createClient();
+    // 생성 타입이 nullable 인자를 표현하지 못해 id 없음(null)·썸네일 없음(null)은 단언으로 넘긴다
+    const { data, error } = await supabase.rpc("save_post", {
+      p_id: null as unknown as string,
+      p_slug: input.slug,
+      p_title: input.title,
+      p_content: input.content,
+      p_thumbnail_url: input.thumbnailUrl as string,
+      p_tag_ids: input.tagIds,
+    });
+    if (error?.code === "23505") {
+      return fail("conflict", SLUG_TAKEN_MESSAGE, { slug: SLUG_TAKEN_MESSAGE });
+    }
+    if (error || !data?.id) {
+      console.error("게시글 저장 실패", error);
+      return fail("unknown", POST_SAVE_FAILED_MESSAGE);
+    }
+    return succeed({ id: data.id, slug: data.slug });
+  } catch (error) {
+    console.error("게시글 저장 중 예외", error);
+    return fail("unknown", POST_SAVE_FAILED_MESSAGE);
+  }
+}
+
+/**
+ * 게시글을 작성한다. 관리자 재검증 → 입력·이미지 URL 검증 → `save_post` → 캐시 재검증 순서다.
+ * 권한 없음(forbidden)·검증 실패(validation)·slug 중복(conflict)·그 외(unknown)로 알리고 예외는 던지지 않는다.
  * @param input 제목·slug·본문·썸네일 URL·태그 id
  */
 export async function createPost(
   input: PostInput,
 ): Promise<ActionResult<PostRef>> {
-  if (isSlugTaken(input.slug)) {
-    return fail("conflict", "이미 사용 중인 slug입니다.", {
-      slug: "이미 사용 중인 slug입니다.",
-    });
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) return fail("forbidden", "권한이 없습니다.");
+
+  const parsed = parsePostInput(input);
+  if (!parsed.ok) return parsed;
+
+  const result = await savePostRecord(parsed.data);
+  if (result.ok) {
+    revalidatePath("/");
+    revalidatePath(`/posts/${result.data.slug}`);
   }
-  return succeed({ id: "post-new", slug: input.slug });
+  return result;
 }
 
 /**
