@@ -391,12 +391,21 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
       - 정리: 실행 후 운영 DB는 글 7·태그 4·`[e2e]` 0개로 유지됨을 SQL로 확인했다. 기존 읽기 E2E(`main-page`·`post-detail`·`smoke`)와 `post-create`·`image-upload`를 이어서 실행해 54개 통과(6개는 프로덕션 빌드 전용이라 skip)
       - 보정: `smoke.spec.ts`의 "더미 게이트(프로덕션 빌드 전용)" 목록에 `/posts/new`가 404로 남아 있었다(21-C에서 개방했는데 로컬에서는 skip이라 가려짐). CI에서 실패할 항목이라 목록에서 제거했고, `/posts/new`의 비관리자 로그인 리디렉션은 `post-create.spec.ts`가 CI에서도 검증한다
       - 검증하지 않은 것: 방문자 쪽 캐시(`revalidatePath`) 효과는 개발 서버 기준이라 프로덕션 CDN 캐시 동작은 푸시 후 확인한다
-  - **21-U 수정**
-    - [ ] 상세 [수정] → 같은 URL `?edit=1` 수정 모드 전환을 실데이터로 연결: 서버 가드(`requireAdmin`), 상세가 이미 조회한 값으로 폼 초기화(수정 전용 조회 없음), 없는 slug는 404
-    - [ ] `updatePost` 실구현: `save_post` 수정 경로, 수정 대상이 이미 없으면 "대상 없음" 안내 후 메인 이동
-    - [ ] 이미지 교체(저장 성공 후 이전 객체 삭제), slug 변경 시 이전 경로 포함 재검증, [저장] 후 읽기 모드 복귀(새 slug URL), [취소]는 읽기 모드 복귀
-    - [ ] 게이트 해제: 게시글 `?edit=1` 수정 모드를 프로덕션에 연다
+  - **21-U 수정** ✅ - 완료(2026-11-23)
+    - [x] 상세 [수정] → 같은 URL `?edit=1` 수정 모드 전환을 실데이터로 연결: 서버 가드(`requireAdmin`), 상세가 이미 조회한 값으로 폼 초기화(수정 전용 조회 없음), 없는 slug는 404
+    - [x] `updatePost` 실구현: `save_post` 수정 경로, 수정 대상이 이미 없으면 "대상 없음" 안내 후 메인 이동
+    - [x] 이미지 교체(저장 성공 후 이전 객체 삭제), slug 변경 시 이전 경로 포함 재검증, [저장] 후 읽기 모드 복귀(새 slug URL), [취소]는 읽기 모드 복귀
+    - [x] 게이트 해제: 게시글 `?edit=1` 수정 모드를 프로덕션에 연다
     - 수락: [수정]으로 같은 페이지가 읽기 전용에서 수정 모드로 바뀌고, 저장하면 읽기 모드에 반영된다
+    - 구현 메모(2026-11-23):
+      - DB 마이그레이션은 없다. `save_post`의 수정 분기를 롤백되는 SQL로 처음 검증했다(제목·본문·slug·썸네일 변경, 태그 매핑 교체, 다른 글 slug 충돌 `23505`, 없는 id `P0002`, `authenticated`이지만 관리자가 아닌 역할의 호출은 0행 갱신으로 `P0002`이고 데이터 불변). `updated_at` 갱신은 단일 트랜잭션에서는 판별되지 않아 E2E의 수정일 표시로 확인했다
+      - `updatePost`(`src/lib/data/actions.ts`): `getViewer` → id uuid 형식(아니면 DB 없이 `notFound`) → 수정 전 글의 slug·썸네일 조회(없으면 `notFound`) → `postFormSchema` + 썸네일 검증 → `save_post`(기존 id) → `revalidatePath`(`/`·새 slug·**slug가 바뀌면 이전 slug 상세도**). `createPost`와 RPC 호출·오류 분류(`23505` conflict, `P0002` notFound, 그 외 unknown)를 `callSavePost` 헬퍼로 공유해 생성 타입의 null 단언을 한 곳에 모았다. 미사용이 된 더미 `isSlugTaken`은 제거했다(`dummyPosts`는 `deletePost`가 계속 쓴다)
+      - **썸네일 허용 규칙**: 폼은 기존 썸네일을 그대로 다시 보내므로 `posts/` 버킷 경로만 허용하면 버킷 밖 기존 값(외부 URL·사이트 내부 경로)이 있는 글의 수정이 막힌다. 그래서 "`posts/` 경로이거나 수정 전 값과 같을 때만" 허용한다. 현재 시드 글은 모두 썸네일이 null이라 이 규칙은 단위 테스트로만 검증했다
+      - **[삭제] 분리**: `AdminActions`·`PostDetail`에 `showDelete`(기본 true)를 추가했다. 게시글 상세는 `isAdmin={viewer.isAdmin}`(수정은 프로덕션에도 노출)와 `showDelete={isDevOnlyOpen()}`(삭제는 21-D 전까지 개발 환경에서만)로 넘기고, 개발 일기 상세는 기존 게이트를 그대로 둔다. 상세 `?edit=1`의 `assertDevOnly()` 2곳(`generateMetadata`·페이지)은 제거했고 `requireAdmin`·없는 slug 404·noindex는 유지했다. `PostForm`의 수정 모드·notFound 처리·읽기 모드 복귀는 이미 구현돼 있어 코드 변경 없이 주석만 정리했다
+      - 검증: 단위 `updatePost` 11개·`AdminActions` 2개·`PostDetail` `showDelete` 1개를 포함해 730개 통과. 신규 로컬 E2E `e2e/post-edit.spec.ts` 10개(서비스 키로 만든 `[e2e]` 글 대상, 정리 포함): 수정 모드 전환과 기존값, 저장 후 읽기 모드 반영(제목·본문·태그·수정일·사이드바 새 태그), slug 변경 후 이전 URL 404, slug 중복 필드 오류, **이미지 교체·제거 시 저장 성공 뒤 이전 객체 삭제(Task 020이 미뤄 둔 실데이터 검증)**, 폼을 연 사이 글 삭제 시 "글을 찾을 수 없습니다" + 메인 이동, 변경 후 [취소], 방문자 `?edit=1` 로그인 리디렉션과 없는 slug 404. 프로덕션 빌드 서버(`E2E_PRODUCTION_BUILD=1`)에서 관리자에게 [수정]만 보이고 [삭제]는 없음을 확인했고, 비관리자 `?edit=1`은 307 로그인, `/dev-logs/new`·`/profile/edit`·개발 일기 `?edit=1`은 404다
+      - 보정: `auth.spec.ts`의 낡은 더미 slug(`hello-blog`)를 `hello-world`로 고쳐 기존에 실패하던 `?edit=1` 리디렉션 2개가 통과한다. `smoke.spec.ts`의 프로덕션 게이트 목록에서 `/posts/hello-world?edit=1`을 제거했다(개방됐고 CI에는 Supabase 환경이 없어 비관리자 리디렉션은 로컬 E2E가 담당한다)
+      - 전체 E2E(개발 서버): 105개 중 96개 통과·8개 skip·1개 실패. 실패는 `login-profile.spec.ts`가 더미 표시 이름 "관리자"를 기대하는 기존 낡은 가정(Task 023에서 프로필과 함께 정비)이다. 정리 후 운영 DB는 글 7·태그 4·`[e2e]` 0·Storage 객체 0이다
+      - 검증하지 않은 것: 프로덕션 CDN 캐시에서 `revalidatePath`가 이전·새 slug 경로에 반영되는지는 푸시 후 확인한다
   - **21-D 삭제**
     - [ ] `deletePost`: 썸네일 URL 조회 → DB 삭제 → Storage 삭제(실패는 로그만, DB 삭제 성공 기준), 확인 다이얼로그(Task 011) 실연결
     - [ ] 성공 시 토스트 "글이 삭제되었습니다"와 메인으로 이동, 이미 삭제된 글은 안내 후 메인 이동, `revalidatePath("/")`와 해당 상세 경로 재검증
