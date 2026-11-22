@@ -14,15 +14,18 @@ import { cn } from "@/lib/utils";
  * @param kind 삭제할 대상 종류 (게시글 또는 개발 일기)
  * @param id 삭제할 대상의 id
  * @param editHref [수정] 링크 (같은 URL에 edit=1을 붙인 주소)
+ * @param showDelete false면 [삭제]를 그리지 않는다 (삭제가 아직 더미인 화면에서 [수정]만 열 때 사용, 기본 true)
  */
 export function AdminActions({
   kind,
   id,
   editHref,
+  showDelete = true,
 }: {
   kind: DeleteKind;
   id: string;
   editHref: string;
+  showDelete?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const editClass = buttonVariants({ variant: "outline" });
@@ -42,7 +45,9 @@ export function AdminActions({
           수정
         </Link>
       )}
-      <DeleteButton kind={kind} id={id} onPendingChange={setPending} />
+      {showDelete && (
+        <DeleteButton kind={kind} id={id} onPendingChange={setPending} />
+      )}
     </div>
   );
 }

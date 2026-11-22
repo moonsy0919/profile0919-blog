@@ -4,10 +4,15 @@ import type { Post } from "@/lib/data";
 import { PostDetail } from "./post-detail";
 
 vi.mock("@/components/admin-actions", () => ({
-  AdminActions: ({ kind, id, editHref }: Record<string, string>) => (
+  AdminActions: ({
+    kind,
+    id,
+    editHref,
+    showDelete,
+  }: Record<string, string | boolean | undefined>) => (
     <div data-testid="admin-actions" data-kind={kind} data-id={id}>
-      <a href={editHref}>수정</a>
-      <button type="button">삭제</button>
+      <a href={String(editHref)}>수정</a>
+      {showDelete !== false && <button type="button">삭제</button>}
     </div>
   ),
 }));
@@ -90,6 +95,20 @@ describe("PostDetail", () => {
     renderDetail({}, { isAdmin: false });
     expect(screen.queryByTestId("admin-actions")).toBeNull();
     expect(screen.queryByRole("link", { name: "수정" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "삭제" })).toBeNull();
+  });
+
+  it("showDelete가 false면 관리자에게도 [삭제]를 그리지 않는다", () => {
+    render(
+      <PostDetail
+        post={basePost}
+        backHref="/"
+        isAdmin
+        editHref="/posts/hello-blog?edit=1"
+        showDelete={false}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "수정" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "삭제" })).toBeNull();
   });
 

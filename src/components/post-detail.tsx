@@ -17,6 +17,8 @@ type PostDetailProps = {
   isAdmin: boolean;
   /** 관리자 [수정] 링크 (같은 URL에 edit=1) */
   editHref: string;
+  /** 관리자 [삭제]를 함께 그릴지 (기본 true). 삭제가 아직 열리지 않은 환경에서는 false */
+  showDelete?: boolean;
 };
 
 /**
@@ -71,6 +73,7 @@ export function PostDetail({
   backHref,
   isAdmin,
   editHref,
+  showDelete = true,
 }: PostDetailProps) {
   return (
     <article className="container mx-auto max-w-5xl px-4 py-8">
@@ -90,7 +93,12 @@ export function PostDetail({
         </header>
         <MarkdownContent content={post.content} />
         {isAdmin && (
-          <AdminActions kind="post" id={post.id} editHref={editHref} />
+          <AdminActions
+            kind="post"
+            id={post.id}
+            editHref={editHref}
+            showDelete={showDelete}
+          />
         )}
       </div>
     </article>
