@@ -382,9 +382,15 @@ profile0919.site는 방문자에게는 읽기 전용 블로그를, 관리자 1�
       - `createPost`(`src/lib/data/actions.ts`): `getViewer` → `postFormSchema` → 썸네일이 이 버킷 `posts/` 경로인지(`isBucketImageUrl`) → 사용자 세션 클라이언트로 `save_post` → 성공 시 `revalidatePath("/")`·`/posts/{slug}`. `23505`는 slug 필드 `conflict`, 그 외·예외는 `unknown`. 생성 타입이 nullable 인자를 표현하지 못해 `p_id`·`p_thumbnail_url`의 null은 타입 단언으로 넘긴다
       - 폼(`PostForm`)·헤더 [작성]·`requireAdmin`은 이미 연결돼 있어 코드 변경이 없고, `posts/new/page.tsx`에서 `assertDevOnly()`만 제거했다. `updatePost`·`deletePost`와 상세 `?edit=1`·[수정]·[삭제] 게이트는 그대로다(21-U·21-D)
       - 검증: 단위 `createPost` 7개(권한·검증·버킷 밖 URL·성공 호출 인자와 재검증·23505·그 외 오류), 로컬 E2E `post-create.spec.ts` 4개(작성 후 DB 즉시 공개·태그 매핑·상세 이동, slug 중복 필드 오류, [취소] 이탈 확인, 비관리자 로그인 리디렉션)와 `image-upload.spec.ts` 5개(실데이터 기준으로 보정) 통과, 정리 후 글 7·태그 4 유지. 프로덕션 빌드에서 `/posts/new`는 로그인 리디렉션(307), `/posts/hello-world?edit=1`·`/dev-logs/new`·`/profile/edit`는 404
-  - **21-R 생성물 읽기 검증**
-    - [ ] 작성한 글이 메인 목록(최신순)·사이드바(새 태그와 개수)·태그 필터·상세·sitemap에 나타나고, 상세 [목록으로]가 태그·페이지를 복원한다
+  - **21-R 생성물 읽기 검증** ✅ - 완료(2026-11-23)
+    - [x] 작성한 글이 메인 목록(최신순)·사이드바(새 태그와 개수)·태그 필터·상세·sitemap에 나타나고, 상세 [목록으로]가 태그·페이지를 복원한다
     - 수락: Phase 6 읽기 화면이 실제 작성 데이터로 동작한다
+    - 구현 메모(2026-11-23):
+      - 신규 로컬 E2E `e2e/post-create-read.spec.ts`(운영 Supabase 사용, CI 스킵, `[e2e]` 접두어·시작·종료 시 서비스 키로 정리): 실제 작성 폼으로 글 + 새 태그를 저장한 뒤 상세 h1·본문·태그 칩, 메인 첫 카드가 새 글(6개/페이지 유지), 사이드바 "전체 보기" +1과 새 태그 개수 1(글에 연결하지 않은 태그는 미노출), 태그 필터 결과 1개(대소문자 변형 포함), 필터에서 상세로 갔다 온 [목록으로]의 tag 복원, `/sitemap.xml`의 `/posts/<slug>`, 글이 늘어난 뒤 `?page=2` 복원을 검증했다
+      - **읽기 코드 결함은 발견되지 않아** 읽기 계층 코드는 수정하지 않았다
+      - 정리: 실행 후 운영 DB는 글 7·태그 4·`[e2e]` 0개로 유지됨을 SQL로 확인했다. 기존 읽기 E2E(`main-page`·`post-detail`·`smoke`)와 `post-create`·`image-upload`를 이어서 실행해 54개 통과(6개는 프로덕션 빌드 전용이라 skip)
+      - 보정: `smoke.spec.ts`의 "더미 게이트(프로덕션 빌드 전용)" 목록에 `/posts/new`가 404로 남아 있었다(21-C에서 개방했는데 로컬에서는 skip이라 가려짐). CI에서 실패할 항목이라 목록에서 제거했고, `/posts/new`의 비관리자 로그인 리디렉션은 `post-create.spec.ts`가 CI에서도 검증한다
+      - 검증하지 않은 것: 방문자 쪽 캐시(`revalidatePath`) 효과는 개발 서버 기준이라 프로덕션 CDN 캐시 동작은 푸시 후 확인한다
   - **21-U 수정**
     - [ ] 상세 [수정] → 같은 URL `?edit=1` 수정 모드 전환을 실데이터로 연결: 서버 가드(`requireAdmin`), 상세가 이미 조회한 값으로 폼 초기화(수정 전용 조회 없음), 없는 slug는 404
     - [ ] `updatePost` 실구현: `save_post` 수정 경로, 수정 대상이 이미 없으면 "대상 없음" 안내 후 메인 이동
