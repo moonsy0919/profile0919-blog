@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /**
  * 프로덕션에서 404로 닫혀야 하는 더미 기반 경로 (개발 서버에서는 열려 있다).
@@ -13,6 +13,16 @@ const gatedPaths = [
   "/profile/edit",
   "/weather-header",
 ];
+
+/** 404 화면이 헤더와 main을 각각 하나만 그리는지(압축형) 확인한다. 그룹 레이아웃과 404가 헤더를 중복해서 그리던 버그의 회귀 방지 */
+async function expectSingleCompactShell(page: Page) {
+  await expect(page.locator("header")).toHaveCount(1);
+  await expect(page.locator("header")).toHaveAttribute(
+    "data-header-variant",
+    "compact",
+  );
+  await expect(page.locator("main")).toHaveCount(1);
+}
 
 test("홈페이지가 렌더링된다", async ({ page }) => {
   await page.goto("/");
@@ -69,6 +79,7 @@ test("메인은 확장형, 404는 압축형 헤더를 하나만 렌더링한다"
     "data-header-variant",
     "compact",
   );
+  await expect(page.locator("main")).toHaveCount(1);
 });
 
 test("헤더는 main 밖에 있고 메뉴 네비게이션과 푸터가 없다", async ({
@@ -198,6 +209,8 @@ test("uuid 형식이 아닌 개발 일기 id는 DB 없이 HTTP 404다", async ({
   await expect(
     page.getByRole("heading", { name: "페이지를 찾을 수 없습니다" }),
   ).toBeVisible();
+  // (site) 그룹 안의 404도 헤더·main이 하나씩이어야 한다
+  await expectSingleCompactShell(page);
 });
 
 test("/dev-logs는 프로덕션에도 열려 있어 404가 아니다", async ({ request }) => {

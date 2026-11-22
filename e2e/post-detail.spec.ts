@@ -62,6 +62,9 @@ test.describe("게시글 상세", () => {
   test("없는 slug는 HTTP 404다", async ({ page }) => {
     const response = await page.goto("/posts/없는-글");
     expect(response?.status()).toBe(404);
+    // 404 화면이 그룹 레이아웃의 헤더·main을 중복해서 그리지 않는다
+    await expect(page.locator("header")).toHaveCount(1);
+    await expect(page.locator("main")).toHaveCount(1);
   });
 
   test("방문자에게는 [수정]/[삭제]가 없다", async ({ page }) => {

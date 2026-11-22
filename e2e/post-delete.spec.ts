@@ -89,6 +89,10 @@ test("[삭제]를 확인하면 목록·사이드바·상세·sitemap·DB·Storag
   ).toHaveCount(0);
   await expect(nav.getByText(tag)).toHaveCount(0);
   expect((await page.request.get(`/posts/${slug}`)).status()).toBe(404);
+  // 삭제된 글의 주소를 화면으로 열어도 404 화면에 헤더·main이 하나씩만 나온다
+  await page.goto(`/posts/${slug}`);
+  await expect(page.locator("header")).toHaveCount(1);
+  await expect(page.locator("main")).toHaveCount(1);
   expect(await (await page.request.get("/sitemap.xml")).text()).not.toContain(
     `/posts/${slug}<`,
   );
