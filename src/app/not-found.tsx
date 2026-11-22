@@ -1,23 +1,15 @@
-import Link from "next/link";
+import { NotFoundContent } from "@/components/not-found-content";
 import { PageShell } from "@/components/page-shell";
-import { buttonVariants } from "@/components/ui/button";
 
-/** 존재하지 않는 경로 또는 notFound() 호출 시 표시되는 404 페이지 (압축형 헤더 포함) */
+/**
+ * 일치하는 경로가 없는 URL에 표시되는 404 페이지(압축형 헤더 포함).
+ * 이 경로에는 그룹 레이아웃이 없어 헤더를 직접 그린다.
+ * 그룹 안에서 notFound()가 호출되는 경우는 그 그룹의 not-found.tsx가 처리한다(헤더 중복 방지).
+ */
 export default function NotFound() {
   return (
     <PageShell variant="compact">
-      <div className="container mx-auto flex max-w-5xl flex-col items-center gap-4 px-4 py-24 text-center">
-        <p className="text-sm font-medium text-muted-foreground">404</p>
-        <h1 className="text-3xl font-bold tracking-tight">
-          페이지를 찾을 수 없습니다
-        </h1>
-        <p className="text-muted-foreground">
-          주소가 잘못되었거나 페이지가 이동되었을 수 있습니다.
-        </p>
-        <Link href="/" className={buttonVariants({ size: "lg" })}>
-          홈으로 돌아가기
-        </Link>
-      </div>
+      <NotFoundContent />
     </PageShell>
   );
 }
