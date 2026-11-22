@@ -359,6 +359,32 @@ export type Database = {
           newly_blocked: boolean
         }[]
       }
+      save_post: {
+        Args: {
+          p_content: string
+          p_id: string
+          p_slug: string
+          p_tag_ids: string[]
+          p_thumbnail_url: string
+          p_title: string
+        }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          published: boolean
+          slug: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "posts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
