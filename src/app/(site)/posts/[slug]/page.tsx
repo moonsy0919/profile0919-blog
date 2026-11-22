@@ -4,7 +4,6 @@ import { PostDetail } from "@/components/post-detail";
 import { PostForm } from "@/components/post-form";
 import { getPost, getTags, getViewer } from "@/lib/data";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { isDevOnlyOpen } from "@/lib/dev-gate";
 import {
   buildDetailMetadata,
   isEditMode,
@@ -35,8 +34,7 @@ export async function generateMetadata({
 
 /**
  * 게시글 상세(/posts/[slug]). 관리자가 edit=1로 들어오면 같은 URL에서 수정 모드로 바뀐다.
- * 읽기 모드와 수정 모드(edit=1)·관리자 [수정]은 실데이터(Task 021-U)라 프로덕션에도 열려 있다.
- * 관리자 [삭제]는 `deletePost`가 아직 더미라 Task 021-D 전까지 개발 환경에서만 보인다.
+ * 읽기 모드와 수정 모드(edit=1)·관리자 [수정]·[삭제]는 모두 실데이터(Task 021-U·021-D)라 프로덕션에도 열려 있다.
  * notFound()는 Suspense 바깥에서 불러야 HTTP 404가 된다.
  */
 export default async function PostDetailPage({
@@ -70,7 +68,6 @@ export default async function PostDetailPage({
       post={post}
       backHref={buildBackHref("/", sp)}
       isAdmin={viewer.isAdmin}
-      showDelete={isDevOnlyOpen()}
       editHref={editHref}
     />
   );
