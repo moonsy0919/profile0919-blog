@@ -24,7 +24,7 @@ import type {
 } from "./types";
 
 /*
- * 쓰기 서버 액션. `createTag`(Task 020)·`createPost`(Task 021-C)만 실구현이고 나머지는 더미다.
+ * 쓰기 서버 액션. `createTag`(Task 020)·`createPost`(021-C)·`updatePost`(021-U)만 실구현이고 나머지는 더미다.
  * 더미는 데이터를 실제로 바꾸지 않고 시그니처와 반환 형태만 고정한다.
  * 관리자 재검증·Zod 검증·revalidatePath는 Task 006·016·021~023에서 이 파일 안에 채운다.
  * 프로덕션 보호는 이 함수를 부르는 더미 경로의 라우트 게이트(assertDevOnly)가 맡는다.
@@ -45,26 +45,29 @@ function fail<T>(
   return { ok: false, error: { code, message, fieldErrors } };
 }
 
-/**
- * 다른 글이 이미 쓰는 slug인지 확인한다.
- * @param slug 확인할 slug
- * @param ownId 수정 중인 글 id (자기 자신은 제외)
- */
-function isSlugTaken(slug: string, ownId?: string): boolean {
-  return dummyPosts.some((post) => post.slug === slug && post.id !== ownId);
-}
-
 /** 게시글 저장에 실패했을 때 보일 문구 */
 const POST_SAVE_FAILED_MESSAGE = "저장하지 못했습니다. 다시 시도해 주세요";
 
 /** slug 중복 문구 */
 const SLUG_TAKEN_MESSAGE = "이미 사용 중인 slug입니다.";
 
+/** 수정 대상 글이 없을 때 문구 */
+const POST_NOT_FOUND_MESSAGE = "글을 찾을 수 없습니다.";
+
+/** uuid 형식. 형식이 아닌 id는 DB를 부르지 않고 "없음"으로 본다(Postgres 22P02가 일반 오류가 되는 것 방지) */
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * 게시글 작성 입력을 검증한다. Zod 스키마(폼과 공용) 뒤에 썸네일이 이 버킷의 `posts/` 경로인지 확인한다.
+ * 게시글 입력을 검증한다. Zod 스키마(폼과 공용) 뒤에 썸네일을 확인한다.
+ * 썸네일은 이 버킷의 `posts/` 경로이거나 수정 전 값과 같을 때만 허용한다(버킷 밖 기존 값을 그대로 두는 수정을 막지 않기 위해).
  * @param input 폼이 보낸 입력
+ * @param currentThumbnail 수정 전 썸네일 주소 (작성이면 null)
  */
-function parsePostInput(input: PostInput): ActionResult<PostInput> {
+function parsePostInput(
+  input: PostInput,
+  currentThumbnail: string | null,
+): ActionResult<PostInput> {
   const parsed = postFormSchema.safeParse(input);
   if (!parsed.success) {
     const fieldErrors = zodErrorToFieldErrors(parsed.error);
@@ -72,7 +75,11 @@ function parsePostInput(input: PostInput): ActionResult<PostInput> {
     return fail("validation", message, fieldErrors);
   }
   const { thumbnailUrl } = parsed.data;
-  if (thumbnailUrl && !isBucketImageUrl(thumbnailUrl, ["posts"])) {
+  const allowed =
+    !thumbnailUrl ||
+    isBucketImageUrl(thumbnailUrl, ["posts"]) ||
+    thumbnailUrl === currentThumbnail;
+  if (!allowed) {
     const message = "허용되지 않는 이미지 주소입니다";
     return fail("validation", message, { thumbnailUrl: message });
   }
@@ -81,17 +88,19 @@ function parsePostInput(input: PostInput): ActionResult<PostInput> {
 
 /**
  * 사용자 세션의 서버 클라이언트로 `save_post`를 호출한다(security invoker라 RLS가 적용된다).
- * slug 중복(23505)은 slug 필드 오류(conflict), 그 외·빈 행·예외는 일반 오류(unknown)다.
+ * slug 중복(23505)은 slug 필드 오류(conflict), 수정 대상 없음(P0002)은 notFound, 그 외·빈 행·예외는 일반 오류(unknown)다.
+ * @param id 수정할 글 id (작성이면 null)
  * @param input 검증을 통과한 입력
  */
-async function savePostRecord(
+async function callSavePost(
+  id: string | null,
   input: PostInput,
 ): Promise<ActionResult<PostRef>> {
   try {
     const supabase = await createClient();
-    // 생성 타입이 nullable 인자를 표현하지 못해 id 없음(null)·썸네일 없음(null)은 단언으로 넘긴다
+    // 생성 타입이 nullable 인자를 표현하지 못해 null(id 없음·썸네일 없음)은 단언으로 넘긴다
     const { data, error } = await supabase.rpc("save_post", {
-      p_id: null as unknown as string,
+      p_id: id as string,
       p_slug: input.slug,
       p_title: input.title,
       p_content: input.content,
@@ -101,6 +110,8 @@ async function savePostRecord(
     if (error?.code === "23505") {
       return fail("conflict", SLUG_TAKEN_MESSAGE, { slug: SLUG_TAKEN_MESSAGE });
     }
+    if (error?.code === "P0002")
+      return fail("notFound", POST_NOT_FOUND_MESSAGE);
     if (error || !data?.id) {
       console.error("게시글 저장 실패", error);
       return fail("unknown", POST_SAVE_FAILED_MESSAGE);
@@ -110,6 +121,43 @@ async function savePostRecord(
     console.error("게시글 저장 중 예외", error);
     return fail("unknown", POST_SAVE_FAILED_MESSAGE);
   }
+}
+
+/** 저장 직전 글의 slug와 썸네일 주소 */
+type PostBefore = { slug: string; thumbnailUrl: string | null };
+
+/**
+ * 수정 전 글의 slug·썸네일을 조회한다(이전 slug 경로 재검증과 썸네일 허용 판정에 쓴다).
+ * 행이 없으면 notFound, 조회 실패·예외는 unknown이다.
+ * @param id 글 id
+ */
+async function readPostBefore(id: string): Promise<ActionResult<PostBefore>> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("posts")
+      .select("slug, thumbnail_url")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      console.error("수정 전 글 조회 실패", error);
+      return fail("unknown", POST_SAVE_FAILED_MESSAGE);
+    }
+    if (!data) return fail("notFound", POST_NOT_FOUND_MESSAGE);
+    return succeed({ slug: data.slug, thumbnailUrl: data.thumbnail_url });
+  } catch (error) {
+    console.error("수정 전 글 조회 중 예외", error);
+    return fail("unknown", POST_SAVE_FAILED_MESSAGE);
+  }
+}
+
+/**
+ * 목록(`/`)과 글 상세 경로를 재검증한다. slug가 바뀐 수정이면 이전 slug 경로도 함께 넘긴다.
+ * @param slugs 재검증할 글 slug들
+ */
+function revalidatePostPaths(slugs: string[]): void {
+  revalidatePath("/");
+  for (const slug of new Set(slugs)) revalidatePath(`/posts/${slug}`);
 }
 
 /**
@@ -123,33 +171,36 @@ export async function createPost(
   const viewer = await getViewer();
   if (!viewer.isAdmin) return fail("forbidden", "권한이 없습니다.");
 
-  const parsed = parsePostInput(input);
+  const parsed = parsePostInput(input, null);
   if (!parsed.ok) return parsed;
 
-  const result = await savePostRecord(parsed.data);
-  if (result.ok) {
-    revalidatePath("/");
-    revalidatePath(`/posts/${result.data.slug}`);
-  }
+  const result = await callSavePost(null, parsed.data);
+  if (result.ok) revalidatePostPaths([result.data.slug]);
   return result;
 }
 
 /**
- * 게시글을 수정한다. 대상이 없으면 notFound, slug 중복이면 conflict다.
+ * 게시글을 수정한다. 관리자 재검증 → id 형식 → 수정 전 글 조회 → 입력·이미지 URL 검증 → `save_post`(기존 id) → 캐시 재검증 순서다.
+ * 대상이 없으면(이미 삭제됨 포함) notFound, slug 중복이면 slug 필드 conflict다. slug가 바뀌면 이전 slug 경로도 재검증한다.
  * @param input 글 id와 수정할 값
  */
 export async function updatePost(
   input: UpdatePostInput,
 ): Promise<ActionResult<PostRef>> {
-  if (!dummyPosts.some((post) => post.id === input.id)) {
-    return fail("notFound", "글을 찾을 수 없습니다.");
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) return fail("forbidden", "권한이 없습니다.");
+  if (!UUID_PATTERN.test(input.id)) {
+    return fail("notFound", POST_NOT_FOUND_MESSAGE);
   }
-  if (isSlugTaken(input.slug, input.id)) {
-    return fail("conflict", "이미 사용 중인 slug입니다.", {
-      slug: "이미 사용 중인 slug입니다.",
-    });
-  }
-  return succeed({ id: input.id, slug: input.slug });
+
+  const before = await readPostBefore(input.id);
+  if (!before.ok) return before;
+  const parsed = parsePostInput(input, before.data.thumbnailUrl);
+  if (!parsed.ok) return parsed;
+
+  const result = await callSavePost(input.id, parsed.data);
+  if (result.ok) revalidatePostPaths([before.data.slug, result.data.slug]);
+  return result;
 }
 
 /**

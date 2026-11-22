@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getViewer, rpc, createClient, revalidatePath } = vi.hoisted(() => {
-  const rpc = vi.fn();
-  return {
-    getViewer: vi.fn(),
-    rpc,
-    createClient: vi.fn(async () => ({ rpc })),
-    revalidatePath: vi.fn(),
-  };
-});
+const { getViewer, rpc, maybeSingle, createClient, revalidatePath } =
+  vi.hoisted(() => {
+    const rpc = vi.fn();
+    const maybeSingle = vi.fn();
+    // updatePost가 수정 전 글을 읽는 from().select().eq().maybeSingle() 체인
+    const from = vi.fn(() => ({
+      select: () => ({ eq: () => ({ maybeSingle }) }),
+    }));
+    return {
+      getViewer: vi.fn(),
+      rpc,
+      maybeSingle,
+      createClient: vi.fn(async () => ({ rpc, from })),
+      revalidatePath: vi.fn(),
+    };
+  });
 vi.mock("./reads", () => ({ getViewer }));
 vi.mock("@/lib/supabase/server", () => ({ createClient }));
 vi.mock("next/cache", () => ({ revalidatePath }));
@@ -42,28 +49,6 @@ const devLogInput = {
 };
 
 describe("게시글 액션", () => {
-  it("수정은 자기 slug를 그대로 쓸 수 있고 없는 글은 notFound다", async () => {
-    const same = await updatePost({
-      ...postInput,
-      id: "post-01",
-      slug: "hello-blog",
-    });
-    expect(same.ok).toBe(true);
-    const missing = await updatePost({ ...postInput, id: "없는-id" });
-    expect(missing.ok).toBe(false);
-    if (!missing.ok) expect(missing.error.code).toBe("notFound");
-  });
-
-  it("다른 글의 slug로 수정하면 conflict다", async () => {
-    const result = await updatePost({
-      ...postInput,
-      id: "post-02",
-      slug: "hello-blog",
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe("conflict");
-  });
-
   it("삭제는 있는 글이면 성공, 없으면 notFound다", async () => {
     expect(await deletePost("post-01")).toEqual({ ok: true, data: null });
     const missing = await deletePost("없는-id");
@@ -155,6 +140,131 @@ describe("createPost", () => {
     rpc.mockResolvedValue({ data: null, error: null });
     expect((await failure()).code).toBe("unknown");
     rpc.mockRejectedValue(new Error("네트워크"));
+    expect((await failure()).code).toBe("unknown");
+  });
+});
+
+describe("updatePost", () => {
+  const ID = "0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d";
+  const BUCKET =
+    "https://example.supabase.co/storage/v1/object/public/thumbnails";
+  const input = { ...postInput, id: ID, slug: "next-slug" };
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    getViewer.mockReset().mockResolvedValue({ isAdmin: true });
+    maybeSingle.mockReset().mockResolvedValue({
+      data: { slug: "old-slug", thumbnail_url: null },
+      error: null,
+    });
+    rpc
+      .mockReset()
+      .mockResolvedValue({ data: { id: ID, slug: "next-slug" }, error: null });
+    createClient.mockClear();
+    revalidatePath.mockClear();
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** 실패 결과의 오류만 꺼낸다 */
+  async function failure(value = input) {
+    const result = await updatePost(value);
+    if (result.ok) throw new Error("실패를 기대했습니다");
+    return result.error;
+  }
+
+  it("관리자가 아니면 DB를 부르지 않고 forbidden이다", async () => {
+    getViewer.mockResolvedValue({ isAdmin: false });
+    expect((await failure()).code).toBe("forbidden");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("uuid가 아닌 id는 DB를 부르지 않고 notFound다", async () => {
+    expect((await failure({ ...input, id: "없는-id" })).code).toBe("notFound");
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("수정 전 글이 없으면 notFound이고 저장하지 않는다", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+    expect((await failure()).code).toBe("notFound");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("검증에 실패하면 필드 오류를 주고 저장하지 않는다", async () => {
+    const error = await failure({ ...input, title: " ", slug: "New" });
+    expect(error.code).toBe("validation");
+    expect(error.fieldErrors?.title).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("성공하면 기존 id로 save_post를 호출하고 새·이전 slug를 재검증한다", async () => {
+    const result = await updatePost(input);
+    expect(result).toEqual({ ok: true, data: { id: ID, slug: "next-slug" } });
+    expect(rpc).toHaveBeenCalledWith(
+      "save_post",
+      expect.objectContaining({ p_id: ID, p_slug: "next-slug" }),
+    );
+    expect(revalidatePath).toHaveBeenCalledWith("/");
+    expect(revalidatePath).toHaveBeenCalledWith("/posts/next-slug");
+    expect(revalidatePath).toHaveBeenCalledWith("/posts/old-slug");
+  });
+
+  it("slug가 그대로면 같은 경로를 두 번 재검증하지 않는다", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { slug: "next-slug", thumbnail_url: null },
+      error: null,
+    });
+    await updatePost(input);
+    const paths = revalidatePath.mock.calls.map(([path]) => path);
+    expect(paths.filter((path) => path === "/posts/next-slug")).toHaveLength(1);
+  });
+
+  it("버킷의 posts/ 경로 썸네일은 허용하고 다른 폴더·외부 주소는 거부한다", async () => {
+    const ok = await updatePost({
+      ...input,
+      thumbnailUrl: `${BUCKET}/posts/a.png`,
+    });
+    expect(ok.ok).toBe(true);
+    for (const url of [`${BUCKET}/dev-logs/a.png`, "https://evil.test/a.png"]) {
+      const error = await failure({ ...input, thumbnailUrl: url });
+      expect(error.fieldErrors?.thumbnailUrl).toBeTruthy();
+    }
+  });
+
+  it("수정 전과 같은 버킷 밖 썸네일은 그대로 저장할 수 있다", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { slug: "old-slug", thumbnail_url: "/legacy/a.png" },
+      error: null,
+    });
+    const result = await updatePost({
+      ...input,
+      thumbnailUrl: "/legacy/a.png",
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it("slug 중복(23505)은 slug 필드 conflict이고 재검증하지 않는다", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "23505" } });
+    const error = await failure();
+    expect(error.code).toBe("conflict");
+    expect(error.fieldErrors?.slug).toBeTruthy();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("저장 중 대상이 사라지면(P0002) notFound다", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "P0002" } });
+    expect((await failure()).code).toBe("notFound");
+  });
+
+  it("그 외 DB 오류·조회 오류·예외는 unknown이다", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "23503" } });
+    expect((await failure()).code).toBe("unknown");
+    rpc.mockRejectedValue(new Error("네트워크"));
+    expect((await failure()).code).toBe("unknown");
+    maybeSingle.mockResolvedValue({ data: null, error: { code: "XX000" } });
     expect((await failure()).code).toBe("unknown");
   });
 });
